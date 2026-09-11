@@ -197,8 +197,8 @@ textarea.input{resize:vertical;min-height:60px}.row{display:flex;gap:12px}.row>*
    Pages) or open it after adding your keys. See SETUP.md.
    ===================================================================== */
 const CONFIG = {
-    SUPABASE_URL:      'https://itruuucxgrkohvlcvazq.supabase.co',
-SUPABASE_ANON_KEY:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0cnV1dWN4Z3Jrb2h2bGN2YXpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMTUzNDIsImV4cCI6MjEwNDY5MTM0Mn0.ZOUrwNudv_2ZLxaAT9ToVmYMvY7FisxhtIN-bFI62Ik',
+  SUPABASE_URL:      'https://itruuucxgrkohvlcvazq.supabase.co',
+SUPABASE_ANON_KEY:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0cnV1dWN4Z3Jrb2h2bGN2YXpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMTUzNDIsImV4cCI6MjEwNDY5MTM0Mn0.ZOUrwNudv2ZLxaAT9ToVmYMvY7FisxhtIN-bFI62Ik',
   BILLS_BUCKET:      'bills',
   EDGE_ANALYZE_URL:  '',          // optional: https://YOUR-PROJECT.functions.supabase.co/analyze-bill
   ANTHROPIC_API_KEY: ''           // optional fallback (exposes key in browser — prefer the Edge Function)
@@ -256,13 +256,15 @@ const pcTotal = pc => (pc.bills||[]).reduce((s,b)=>s+(Number(b.amount)||0),0);
 const idsByRole = r => State.profiles.filter(p=>p.role===r).map(p=>p.id);
 const financeIds = () => idsByRole('finance');
 
-/* ---------- Access helpers ---------- */
+/* ---------- Access helpers ----------
+   is_admin (Dushan) is a super-user: can prepare, review, approve and do finance,
+   in addition to the admin pages. Everyone else is limited to their own role. */
+const isAdmin = () => !!(State.user && State.user.is_admin);
 const canEdit    = () => State.user && (State.user.access==='edit' || State.user.is_admin);
-const canPrepare = () => State.user.role==='preparer' && canEdit();
-const canReviewPc  = pc => State.user.role==='reviewer' && canEdit() && pc.status==='review';
-const canApprovePc = pc => State.user.role==='approver' && canEdit() && pc.status==='approve';
-const canReimburse = () => (State.user.role==='finance'||State.user.role==='preparer') && canEdit();
-const isAdmin = () => !!State.user.is_admin;
+const canPrepare = () => (State.user.role==='preparer' || isAdmin()) && canEdit();
+const canReviewPc  = pc => (State.user.role==='reviewer' || isAdmin()) && canEdit() && pc.status==='review';
+const canApprovePc = pc => (State.user.role==='approver' || isAdmin()) && canEdit() && pc.status==='approve';
+const canReimburse = () => (State.user.role==='finance'||State.user.role==='preparer'||isAdmin()) && canEdit();
 
 const STATUS = {draft:{label:'Draft',cls:'draft'},review:{label:'Pending review',cls:'review'},approve:{label:'Pending approval',cls:'approve'},approved:{label:'Approved · for settlement',cls:'done'},rejected:{label:'Returned',cls:'reject'}};
 const statusTag = s => { const m=STATUS[s]||STATUS.draft; return `<span class="tag ${m.cls}">${m.label}</span>`; };
@@ -355,6 +357,7 @@ function subscribeRealtime(){
    NAV
    ================================================================== */
 function pendingForUser(){
+  if(isAdmin()) return State.pcs.filter(p=>p.status==='review'||p.status==='approve').length;
   if(State.user.role==='reviewer') return State.pcs.filter(p=>p.status==='review').length;
   if(State.user.role==='approver') return State.pcs.filter(p=>p.status==='approve').length;
   return 0;
@@ -364,7 +367,7 @@ function buildNav(){
   items.push({grp:'Workspace'},{v:'dashboard',label:'Dashboard',ico:'▦'});
   if(canPrepare()) items.push({v:'create',label:'Create petty cash',ico:'＋'});
   items.push({v:'list',label:'All petty cash',ico:'≣'});
-  if(u.role==='reviewer'||u.role==='approver') items.push({v:'approvals',label:'My approvals',ico:'✔',badge:pend||null});
+  if(u.role==='reviewer'||u.role==='approver'||isAdmin()) items.push({v:'approvals',label:isAdmin()?'Review & approve':'My approvals',ico:'✔',badge:pend||null});
   items.push({grp:'Management'},{v:'reimb',label:'Reimbursements',ico:'⇄'},{v:'search',label:'Advanced search',ico:'⌕'},{v:'accounts',label:'Chart of accounts',ico:'▤'},{v:'activity',label:'Activity log',ico:'◷'});
   if(u.is_admin) items.push({grp:'Admin'},{v:'users',label:'Users & rights',ico:'⚙'},{v:'admin',label:'Data controls',ico:'⛭'});
   $('#nav').innerHTML = items.map(it=> it.grp?`<div class="grp">${it.grp}</div>`:
@@ -435,8 +438,11 @@ function renderList(){
 }
 App.filterList = f => { document.querySelectorAll('[data-f]').forEach(b=>b.classList.toggle('primary',b.dataset.f===f)); $('#listBody').innerHTML=pcTable(f==='all'?State.pcs:State.pcs.filter(p=>p.status===f)); };
 function renderApprovals(){
-  const want=State.user.role==='reviewer'?'review':'approve';
-  $('#view').innerHTML=`<div class="warn-banner" style="background:var(--blue-bg);border-color:#cfe0f0;color:#284a6b">${State.user.role==='reviewer'?'Check every bill, invoice, reason and GL account, then approve to forward to Shadi Girgis for final approval.':'Review who prepared and who checked, then give final approval to raise this to Finance for settlement.'}</div><div class="card"><div class="bd" style="padding:0">${pcTable(State.pcs.filter(p=>p.status===want))}</div></div>`;
+  let list, msg;
+  if(isAdmin()){ list=State.pcs.filter(p=>p.status==='review'||p.status==='approve'); msg='As admin you can review and give final approval on any petty cash below. Open one to act on it.'; }
+  else if(State.user.role==='reviewer'){ list=State.pcs.filter(p=>p.status==='review'); msg='Check every bill, invoice, reason and GL account, then approve to forward to Shadi Girgis for final approval.'; }
+  else { list=State.pcs.filter(p=>p.status==='approve'); msg='Review who prepared and who checked, then give final approval to raise this to Finance for settlement.'; }
+  $('#view').innerHTML=`<div class="warn-banner" style="background:var(--blue-bg);border-color:#cfe0f0;color:#284a6b">${msg}</div><div class="card"><div class="bd" style="padding:0">${pcTable(list)}</div></div>`;
 }
 
 /* ==================================================================
@@ -463,6 +469,7 @@ function drawCreate(){
     <div><div class="sub">Prepared by</div><div style="font-weight:600">${esc(State.user.name)}</div></div>
     <div class="spacer"></div><div style="text-align:right"><div class="sub">Bills · Total</div><div style="font-weight:800;font-size:18px" class="num">${(d.bills||[]).length} · ${aed(total)}</div></div>
   </div></div>
+  ${d.reject_reason?`<div class="warn-banner" style="background:var(--red-bg);border-color:#e6b3ae;color:#7a2a2a">↩ This petty cash was returned by ${esc(profById(d.rejected_by).name)}: “${esc(d.reject_reason)}”. Fix the issue below, then re-submit.</div>`:''}
   ${dup?`<div class="warn-banner" style="background:var(--red-bg);border-color:#e6b3ae;color:#7a2a2a">⚠ ${dup} possible duplicate ${dup>1?'bills':'bill'} detected and highlighted below.</div>`:''}
   <div class="card" style="margin-bottom:16px"><div class="hd"><h3>1 · Upload bills & invoices</h3><div class="spacer"></div><span class="sub">Images or PDF · one-by-one or bulk</span></div>
     <div class="bd"><div class="dropzone" id="dz" onclick="document.getElementById('fileInp').click()"><div style="font-size:26px">⇪</div><div class="big">Drop bills here or click to browse</div><div class="small">JPG, PNG or PDF. Files go straight to shared cloud storage and are read automatically.</div></div>
@@ -471,8 +478,8 @@ function drawCreate(){
     <div class="bd" id="billsBox">${(d.bills||[]).length? d.bills.map(billRow).join('') : `<div class="empty"><div class="big">No bills uploaded yet</div>Upload bills above to begin capturing.</div>`}</div></div>
   <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
     <div class="spacer"></div>
-    <button class="btn ghost danger" onclick="App.discardDraft()">Discard</button>
-    <button class="btn primary" onclick="App.finalise()" ${(d.bills||[]).length===0?'disabled':''}>Finalise & send for review →</button>
+    ${d.ref?`<button class="btn" onclick="App.nav('list')">Save &amp; close</button>`:`<button class="btn ghost danger" onclick="App.discardDraft()">Discard</button>`}
+    <button class="btn primary" onclick="App.finalise()" ${(d.bills||[]).length===0?'disabled':''}>${d.ref?'Re-submit for review →':'Finalise &amp; send for review →'}</button>
   </div>`;
   wireDropzone();
 }
@@ -550,13 +557,16 @@ App.finalise = async () => {
   const d=State.draft; const noGl=(d.bills||[]).filter(b=>!b.gl_code).length, noAmt=(d.bills||[]).filter(b=>!b.amount).length;
   if(noGl){toast(`${noGl} bill(s) have no GL account`,'err');return;} if(noAmt){toast(`${noAmt} bill(s) have no amount`,'err');return;}
   const dup=(d.bills||[]).filter(b=>b.is_duplicate).length;
+  const resubmit = !!d.ref;   // already has a reference → this is a corrected re-submission
   const run=async()=>{
-    const {data:ref}=await sb.rpc('assign_ref',{pc:d.id});
-    await sb.from('petty_cash').update({status:'review',finalised_at:new Date().toISOString(),ref}).eq('id',d.id);
-    d.ref=ref; d.status='review'; d.finalised_at=new Date().toISOString();
-    await logAct('Finalised petty cash',ref,`${d.bills.length} bill(s) · ${aed(pcTotal(d))}`);
-    await notify(idsByRole('reviewer'),`${State.user.name} finalised petty cash ${ref} (${aed(pcTotal(d))}). Ready for your check & review.`,d.id,ref);
-    State.draft=null; closeModal(); toast('Finalised — Benin notified','ok'); await loadAll(); buildNav(); go('list');
+    let ref=d.ref;
+    if(!resubmit){ const {data}=await sb.rpc('assign_ref',{pc:d.id}); ref=data; }
+    // back to review; clear any previous return so the trail is clean
+    await sb.from('petty_cash').update({status:'review',finalised_at:new Date().toISOString(),ref,reject_reason:null,rejected_by:null,rejected_at:null}).eq('id',d.id);
+    d.ref=ref; d.status='review'; d.finalised_at=new Date().toISOString(); d.reject_reason=null; d.rejected_by=null;
+    await logAct(resubmit?'Re-submitted after correction':'Finalised petty cash',ref,`${d.bills.length} bill(s) · ${aed(pcTotal(d))}`);
+    await notify(idsByRole('reviewer'),`${State.user.name} ${resubmit?'re-submitted corrected':'finalised'} petty cash ${ref} (${aed(pcTotal(d))}). Ready for your check & review.`,d.id,ref);
+    State.draft=null; closeModal(); toast(resubmit?'Re-submitted — Benin notified':'Finalised — Benin notified','ok'); await loadAll(); buildNav(); go('list');
   };
   if(dup) confirmModal('Duplicates present',`${dup} possible duplicate bill(s) are still flagged. Finalise anyway?`,'Finalise anyway',run); else run();
 };
@@ -574,7 +584,8 @@ function renderDetail(id){
   const pc=State.pcs.find(p=>p.id===id); if(!pc){go('list');return;}
   const total=pcTotal(pc),dup=(pc.bills||[]).filter(b=>b.is_duplicate).length;
   $('#pageTitle').textContent=pc.ref||'Petty cash'; $('#pageSub').textContent=`${(pc.bills||[]).length} bills · ${aed(total)}`;
-  const rv=canReviewPc(pc),ap=canApprovePc(pc),owner=State.user.role==='preparer'&&pc.status==='draft'&&pc.created_by===State.user.id&&canEdit();
+  const rv=canReviewPc(pc),ap=canApprovePc(pc),owner=(State.user.role==='preparer'||isAdmin())&&pc.status==='draft'&&pc.created_by===State.user.id&&canEdit();
+  const canFix=pc.status==='rejected'&&(pc.created_by===State.user.id||State.user.role==='preparer'||isAdmin())&&canEdit();
   $('#view').innerHTML=`
   <button class="btn ghost sm" style="margin-bottom:12px" onclick="App.nav('${State.user.role==='reviewer'||State.user.role==='approver'?'approvals':'list'}')">← Back</button>
   <div class="card" style="margin-bottom:16px"><div class="bd">${stepperHTML(pc)}</div></div>
@@ -594,6 +605,7 @@ function renderDetail(id){
       </div></div>
       ${(rv||ap)?`<div class="card"><div class="hd"><h3>Your action</h3></div><div class="bd"><div class="info-line" style="margin-bottom:12px">${rv?'Confirm the bills, reasons and GL accounts are correct.':'Give final approval to raise this to Finance for settlement.'}</div><button class="btn primary block" onclick="App.approve('${pc.id}')">${rv?'Approve & forward to Shadi':'Give final approval'}</button><button class="btn danger block" style="margin-top:9px" onclick="App.reject('${pc.id}')">Return to preparer</button></div></div>`:''}
       ${owner?`<div class="card"><div class="bd"><button class="btn primary block" onclick="App.resume('${pc.id}')">Continue editing draft</button></div></div>`:''}
+      ${canFix?`<div class="card"><div class="hd"><h3>Correct & re-submit</h3></div><div class="bd"><div class="info-line" style="margin-bottom:12px">This petty cash was returned. Fix the bills, amounts or GL accounts, then re-submit — it keeps the same reference ${esc(pc.ref||'')} and goes back for review.</div><button class="btn primary block" onclick="App.resume('${pc.id}')">Open to correct</button></div></div>`:''}
       ${isAdmin()?`<div class="card"><div class="hd"><h3>Admin</h3></div><div class="bd"><button class="btn danger block" onclick="App.adminDelete('${pc.id}')">Delete this petty cash</button></div></div>`:''}
     </div>
   </div>`;
@@ -612,17 +624,19 @@ App.viewBill = async bid => {
 App.resume = id => { State.draft=State.pcs.find(p=>p.id===id); go('create'); };
 App.approve = async id => {
   const pc=State.pcs.find(p=>p.id===id);
-  if(State.user.role==='reviewer'){
+  // Decide the action by the petty cash's current stage — so an admin (super-user)
+  // acting on either stage does the correct step.
+  if(pc.status==='review' && canReviewPc(pc)){
     await sb.from('petty_cash').update({status:'approve',reviewed_by:State.user.id,reviewed_at:new Date().toISOString()}).eq('id',id);
     await logAct('Reviewed & approved',pc.ref);
-    await notify(idsByRole('approver'),`${State.user.name} approved petty cash ${pc.ref} (${aed(pcTotal(pc))}), prepared by ${profById(pc.created_by).name}. Awaiting your final approval.`,pc.id,pc.ref);
-    toast('Approved — Shadi notified','ok');
-  } else if(State.user.role==='approver'){
+    await notify(idsByRole('approver'),`${State.user.name} approved petty cash ${pc.ref} (${aed(pcTotal(pc))}), prepared by ${profById(pc.created_by).name}. Awaiting final approval.`,pc.id,pc.ref);
+    toast('Approved — forwarded for final approval','ok');
+  } else if(pc.status==='approve' && canApprovePc(pc)){
     await sb.from('petty_cash').update({status:'approved',approved_by:State.user.id,approved_at:new Date().toISOString()}).eq('id',id);
     await logAct('Final approval',pc.ref,aed(pcTotal(pc)));
     await notify(financeIds(),`Approved petty cash ${pc.ref} (${aed(pcTotal(pc))}) has been raised from TSC FM for settlement. Prepared by ${profById(pc.created_by).name}, reviewed by ${profById(pc.reviewed_by).name}, approved by ${State.user.name}.`,pc.id,pc.ref);
     toast('Final approval given — Finance notified','ok');
-  }
+  } else { toast('You cannot act on this petty cash at its current stage','err'); return; }
   await loadAll(); buildNav(); renderDetail(id);
 };
 App.reject = id => { promptModal('Return to preparer','Reason for returning this petty cash','e.g. Bill on line 3 missing / wrong GL', async reason=>{ if(!reason)return; const pc=State.pcs.find(p=>p.id===id);
