@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TSC FMO · Petty Cash</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --ink:#12211e;--ink-2:#1b302b;--paper:#f4f6f3;--card:#ffffff;
+  --brand:#1e6b4f;--brand-dark:#134634;--teal:#0e7c86;
+  --amber:#a9711a;--amber-bg:#fbf1dd;--red:#a83a3a;--red-bg:#f9e7e5;
+  --green:#1e6b4f;--green-bg:#e4f0ea;--blue:#2a5c8a;--blue-bg:#e5edf5;
+  --line:#dde3de;--line-2:#eef1ec;--text:#1a2420;--muted:#5d6b63;
+  --shadow:0 1px 2px rgba(18,33,30,.06),0 8px 24px rgba(18,33,30,.06);--radius:12px;
+}
+*{box-sizing:border-box}html,body{margin:0;padding:0}
+body{font-family:'Inter',system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--paper);color:var(--text);-webkit-font-smoothing:antialiased;font-size:14px;line-height:1.5}
+.num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+button{font-family:inherit;cursor:pointer}input,select,textarea{font-family:inherit;font-size:14px}
+a{color:var(--teal);text-decoration:none}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#cfd6cf;border-radius:8px;border:2px solid var(--paper)}
+.btn{border:1px solid var(--line);background:#fff;color:var(--text);padding:9px 15px;border-radius:9px;font-weight:600;font-size:13px;display:inline-flex;align-items:center;gap:7px;transition:.12s;white-space:nowrap}
+.btn:hover{border-color:#c3ccc4;background:#fbfcfb}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}.btn.primary:hover{background:var(--brand-dark)}
+.btn.dark{background:var(--ink);border-color:var(--ink);color:#fff}.btn.dark:hover{background:var(--ink-2)}
+.btn.ghost{background:transparent;border-color:transparent}.btn.ghost:hover{background:#eef1ec}
+.btn.danger{color:var(--red);border-color:#e6cfcd}.btn.danger:hover{background:var(--red-bg)}
+.btn.sm{padding:6px 11px;font-size:12px;border-radius:8px}.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.block{width:100%;justify-content:center}
+#login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;background:radial-gradient(1200px 600px at 15% -10%,#1b302b 0%,#12211e 55%,#0d1a17 100%)}
+.login-card{width:100%;max-width:430px;background:var(--card);border-radius:18px;box-shadow:0 24px 60px rgba(0,0,0,.35);overflow:hidden}
+.login-head{padding:30px 32px 22px;border-bottom:1px solid var(--line-2)}
+.brandmark{display:flex;align-items:center;gap:11px}
+.brandmark .logo{width:42px;height:42px;border-radius:11px;background:var(--brand);display:grid;place-items:center;color:#fff;font-weight:800;font-size:18px;letter-spacing:-1px}
+.brandmark .txt b{display:block;font-size:16px;font-weight:800;letter-spacing:-.02em}
+.brandmark .txt span{font-size:12px;color:var(--muted)}
+.login-head h1{margin:20px 0 4px;font-size:20px;letter-spacing:-.02em}.login-head p{margin:0;color:var(--muted);font-size:13px}
+.login-body{padding:22px}
+.avatar{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:14px;flex:none}
+#app{display:none;min-height:100vh}
+.shell{display:grid;grid-template-columns:238px 1fr;min-height:100vh}
+.sidebar{background:var(--ink);color:#cfe0d8;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.sb-brand{padding:18px 18px 16px;border-bottom:1px solid rgba(255,255,255,.08)}
+.sb-brand .brandmark .txt b{color:#fff}.sb-brand .brandmark .txt span{color:#8ba79a}.sb-brand .logo{width:36px;height:36px;font-size:15px}
+.nav{padding:12px 10px;flex:1;overflow-y:auto}
+.nav .grp{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:#7c988a;margin:14px 12px 6px;font-weight:600}
+.nav a{display:flex;align-items:center;gap:11px;padding:9px 12px;border-radius:9px;color:#cfe0d8;font-weight:500;font-size:13.5px;margin:2px 0}
+.nav a:hover{background:rgba(255,255,255,.06);color:#fff}.nav a.active{background:var(--brand);color:#fff}
+.nav a .ico{width:18px;height:18px;flex:none;opacity:.9}
+.nav a .badge{margin-left:auto;background:var(--amber);color:#1a1205;font-size:11px;font-weight:700;padding:1px 7px;border-radius:20px}
+.nav a.active .badge{background:#fff;color:var(--brand)}
+.sb-foot{padding:12px;border-top:1px solid rgba(255,255,255,.08)}
+.sb-user{display:flex;align-items:center;gap:10px;padding:6px 6px}
+.sb-user .meta b{color:#fff;font-size:13px;display:block}.sb-user .meta span{color:#8ba79a;font-size:11px}
+.access-pill{display:inline-flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:20px;margin-top:5px}
+.access-pill.edit{background:rgba(30,107,79,.25);color:#8fe6bf}.access-pill.read{background:rgba(169,113,26,.25);color:#f0c98a}
+.main{display:flex;flex-direction:column;min-width:0}
+.topbar{position:sticky;top:0;z-index:30;background:rgba(244,246,243,.86);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:13px 26px;display:flex;align-items:center;gap:14px}
+.topbar h2{margin:0;font-size:17px;letter-spacing:-.02em}.topbar .sub{color:var(--muted);font-size:12.5px}
+.spacer{flex:1}
+.icon-btn{position:relative;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:#fff;display:grid;place-items:center;color:var(--muted)}
+.icon-btn:hover{border-color:#c3ccc4;color:var(--text)}
+.icon-btn .dot{position:absolute;top:7px;right:8px;width:9px;height:9px;background:var(--red);border-radius:50%;border:2px solid #fff}
+.content{padding:24px 26px 60px;max-width:1220px;width:100%}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+.card .hd{padding:15px 18px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:12px}
+.card .hd h3{margin:0;font-size:14.5px;letter-spacing:-.01em}.card .hd .sub{color:var(--muted);font-size:12px}
+.card .bd{padding:16px 18px}.grid{display:grid;gap:16px}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);font-weight:600;padding:10px 14px;border-bottom:1px solid var(--line)}
+td{padding:11px 14px;border-bottom:1px solid var(--line-2);font-size:13.5px;vertical-align:middle}
+tr:last-child td{border-bottom:none}tbody tr:hover{background:#fafbfa}.right{text-align:right}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:20px}
+.tag.draft{background:var(--line-2);color:var(--muted)}.tag.review{background:var(--amber-bg);color:var(--amber)}
+.tag.approve{background:var(--blue-bg);color:var(--blue)}.tag.done{background:var(--green-bg);color:var(--green)}
+.tag.reject{background:var(--red-bg);color:var(--red)}.tag.dup{background:var(--red-bg);color:var(--red)}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.kpi .lbl{font-size:12px;color:var(--muted);font-weight:500}
+.kpi .val{font-size:26px;font-weight:800;letter-spacing:-.03em;margin-top:8px}
+.kpi .foot{font-size:12px;color:var(--muted);margin-top:4px}
+.kpi .strip{position:absolute;left:0;top:0;bottom:0;width:4px}
+.stepper{display:flex;gap:0;margin:2px 0 4px}
+.step{flex:1;position:relative;padding:2px 6px}.step .node{display:flex;align-items:center;gap:9px}
+.step .circle{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;flex:none;background:#fff;border:2px solid var(--line);color:var(--muted)}
+.step.done .circle{background:var(--brand);border-color:var(--brand);color:#fff}
+.step.active .circle{background:#fff;border-color:var(--amber);color:var(--amber);box-shadow:0 0 0 4px var(--amber-bg)}
+.step.reject .circle{background:var(--red);border-color:var(--red);color:#fff}
+.step .who b{display:block;font-size:12.5px}.step .who span{color:var(--muted);font-size:11px}
+.step .bar{position:absolute;top:13px;left:calc(50% + 20px);right:calc(-50% + 20px);height:2px;background:var(--line)}
+.step.done .bar{background:var(--brand)}.step:last-child .bar{display:none}
+.field{margin-bottom:13px}.field label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px}
+.input,select.input,textarea.input{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:#fff;color:var(--text)}
+.input:focus,select.input:focus,textarea.input:focus{outline:none;border-color:var(--brand);box-shadow:0 0 0 3px var(--green-bg)}
+textarea.input{resize:vertical;min-height:60px}.row{display:flex;gap:12px}.row>*{flex:1}
+.dropzone{border:2px dashed var(--line);border-radius:14px;padding:34px 20px;text-align:center;background:#fbfcfb;transition:.15s;cursor:pointer}
+.dropzone:hover,.dropzone.drag{border-color:var(--brand);background:#f4faf6}
+.dropzone .big{font-size:15px;font-weight:600;margin-top:8px}.dropzone .small{font-size:12.5px;color:var(--muted);margin-top:3px}
+.bill{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;display:grid;grid-template-columns:64px 1fr;gap:13px;background:#fff}
+.bill.dup{border-color:#e6b3ae;background:#fdf6f5}
+.bill .thumb{width:64px;height:64px;border-radius:9px;background:#f0f2ef;display:grid;place-items:center;overflow:hidden;border:1px solid var(--line-2)}
+.bill .thumb img{width:100%;height:100%;object-fit:cover}.bill .thumb .ph{font-size:11px;color:var(--muted);font-weight:600}
+.bill .fields{display:grid;grid-template-columns:1.2fr .9fr .7fr 1.1fr;gap:9px}.bill .fields .field{margin:0}
+.bill .fields2{grid-template-columns:1fr auto;display:grid;gap:9px;margin-top:9px;align-items:end}
+.st{font-size:11.5px;font-weight:600;display:flex;align-items:center;gap:6px;color:var(--muted)}
+.spin{width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--brand);border-radius:50%;animation:spin .7s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+.panel{position:fixed;top:0;right:0;bottom:0;width:380px;max-width:92vw;background:#fff;box-shadow:-16px 0 40px rgba(0,0,0,.18);z-index:120;transform:translateX(100%);transition:.22s;display:flex;flex-direction:column}
+.panel.open{transform:translateX(0)}
+.panel .ph{padding:16px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.panel .pb{flex:1;overflow-y:auto;padding:8px}
+.notif{padding:12px 13px;border:1px solid var(--line-2);border-radius:11px;margin:7px 0;background:#fbfcfb}
+.notif.unread{background:#f4faf6;border-color:#cfe6da}
+.notif .nm{font-size:13px;line-height:1.45}.notif .nt{font-size:11px;color:var(--muted);margin-top:5px;display:flex;gap:8px;align-items:center}
+.overlay{position:fixed;inset:0;background:rgba(18,33,30,.4);z-index:110;opacity:0;pointer-events:none;transition:.2s}.overlay.show{opacity:1;pointer-events:auto}
+.modal-wrap{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(18,33,30,.45)}.modal-wrap.show{display:flex}
+.modal{background:#fff;border-radius:16px;width:100%;max-width:520px;box-shadow:0 30px 70px rgba(0,0,0,.35);overflow:hidden;max-height:90vh;display:flex;flex-direction:column}
+.modal .mh{padding:18px 20px;border-bottom:1px solid var(--line-2);display:flex;align-items:center;gap:10px}.modal .mh h3{margin:0;font-size:16px}
+.modal .mb{padding:18px 20px;overflow-y:auto}.modal .mf{padding:14px 20px;border-top:1px solid var(--line-2);display:flex;gap:10px;justify-content:flex-end;background:#fbfcfb}
+#toasts{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);z-index:300;display:flex;flex-direction:column;gap:9px;align-items:center}
+.toast{background:var(--ink);color:#fff;padding:11px 17px;border-radius:11px;font-size:13.5px;font-weight:500;box-shadow:0 12px 30px rgba(0,0,0,.25);display:flex;align-items:center;gap:9px;animation:pop .2s ease}
+.toast.ok{background:var(--brand)}.toast.err{background:var(--red)}@keyframes pop{from{transform:translateY(8px);opacity:0}}
+.empty{text-align:center;padding:48px 20px;color:var(--muted)}.empty .big{font-size:15px;font-weight:600;color:var(--text);margin-bottom:5px}
+.bar-track{height:8px;background:var(--line-2);border-radius:6px;overflow:hidden}.bar-fill{height:100%;background:var(--brand);border-radius:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--line);border-radius:20px;font-size:12px;font-weight:500;background:#fff}
+.hl{background:#fdf6b8;padding:0 2px;border-radius:3px}.divider{height:1px;background:var(--line-2);margin:14px 0}.info-line{font-size:12.5px;color:var(--muted)}
+.warn-banner{background:var(--amber-bg);border:1px solid #ecd9ac;color:#6b4a10;padding:10px 14px;border-radius:10px;font-size:12.5px;margin-bottom:14px;display:flex;gap:9px;align-items:flex-start}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:9px;overflow:hidden}
+.seg button{border:none;background:#fff;padding:6px 12px;font-size:12px;font-weight:600;color:var(--muted)}
+.seg button.on{background:var(--brand);color:#fff}
+@media(max-width:900px){.shell{grid-template-columns:1fr}.sidebar{position:fixed;left:0;top:0;z-index:100;width:238px;transform:translateX(-100%);transition:.2s}.sidebar.open{transform:translateX(0)}.kpis{grid-template-columns:1fr 1fr}.bill{grid-template-columns:1fr}.bill .fields{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="login-card">
+    <div class="login-head">
+      <div class="brandmark"><div class="logo">TSC</div><div class="txt"><b>Petty Cash</b><span>Facilities Management Operations</span></div></div>
+      <h1 id="loginTitle">Sign in</h1>
+      <p id="loginMsg">Use your company email and password.</p>
+    </div>
+    <div class="login-body" id="loginBody">
+      <div class="field"><label>Email</label><input id="email" class="input" type="email" placeholder="you@diamond-developers.ae" autocomplete="username"></div>
+      <div class="field"><label>Password</label><input id="password" class="input" type="password" placeholder="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')App.signIn()"></div>
+      <button class="btn primary block" id="signinBtn" onclick="App.signIn()">Sign in</button>
+      <div id="loginErr" style="color:var(--red);font-size:12.5px;margin-top:10px;text-align:center"></div>
+    </div>
+  </div>
+</div>
+
+<div id="app">
+  <div class="shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sb-brand"><div class="brandmark"><div class="logo">TSC</div><div class="txt"><b>Petty Cash</b><span>FM Operations</span></div></div></div>
+      <nav class="nav" id="nav"></nav>
+      <div class="sb-foot">
+        <div class="sb-user" id="sbUser"></div>
+        <button class="btn ghost sm block" style="color:#cfe0d8;margin-top:6px" onclick="App.signOut()">Sign out</button>
+      </div>
+    </aside>
+    <div class="main">
+      <div class="topbar">
+        <button class="icon-btn" style="display:none" id="menuBtn" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+        <div><h2 id="pageTitle">Dashboard</h2><div class="sub" id="pageSub"></div></div>
+        <div class="spacer"></div>
+        <button class="icon-btn" onclick="App.reload()" title="Refresh">⟳</button>
+        <button class="icon-btn" id="bellBtn" onclick="App.toggleNotif()" title="Notifications">🔔<span class="dot" id="bellDot" style="display:none"></span></button>
+      </div>
+      <div class="content" id="view"></div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay" onclick="App.closePanels()"></div>
+<div class="panel" id="notifPanel">
+  <div class="ph"><b style="font-size:15px">Notifications</b><div class="spacer"></div>
+    <button class="btn ghost sm" onclick="App.markAllRead()">Mark all read</button>
+    <button class="icon-btn" style="width:32px;height:32px" onclick="App.closePanels()">✕</button></div>
+  <div class="pb" id="notifList"></div>
+</div>
+
+<div class="modal-wrap" id="modalWrap"><div class="modal">
+  <div class="mh"><h3 id="modalTitle"></h3><div class="spacer"></div><button class="icon-btn" style="width:32px;height:32px" onclick="App.closeModal()">✕</button></div>
+  <div class="mb" id="modalBody"></div><div class="mf" id="modalFoot"></div>
+</div></div>
+<div id="toasts"></div>
+
+<script>
+/* =====================================================================
+   TSC FMO — Petty Cash (Supabase edition)
+   Fill in CONFIG below, then host this file (Netlify / Vercel / GitHub
+   Pages) or open it after adding your keys. See SETUP.md.
+   ===================================================================== */
+const CONFIG = {
+  SUPABASE_URL:      'https://itruuucxgrkohvlcvazq.supabase.co',
+  SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0cnV1dWN4Z3Jrb2h2bGN2YXpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMTUzNDIsImV4cCI6MjEwNDY5MTM0Mn0.ZOUrwNudv_2ZLxaAT9ToVmYMvY7FisxhtIN-bFI62Ik
+
+',
+  BILLS_BUCKET:      'bills',
+  EDGE_ANALYZE_URL:  '',          // optional: https://YOUR-PROJECT.functions.supabase.co/analyze-bill
+  ANTHROPIC_API_KEY: ''           // optional fallback (exposes key in browser — prefer the Edge Function)
+};
+
+/* ---------- Chart of Accounts (FMO) ---------- */
+const GL = [
+ ['Buggies','51501000','FM- Buggy Technicians'],['Buggies','51501010','FM- GPS Tracking'],['Buggies','51501020','FM- Buggy Cleaning'],['Buggies','51501030','FM- Buggy Spares and Consumables'],
+ ['House Keeping','51502000','FM- Villa Common Area'],['House Keeping','51502010','FM- O&M'],['House Keeping','51502020','FM- Solar Panel Villas Cleaning'],['House Keeping','51502030','FM- Gym and Pool Cleaning & Cons.'],['House Keeping','51502040','FM- Plaza Cleaning'],['House Keeping','51502050','FM- External Facade Cleaning'],
+ ['Communication Expenses','51503000','FM- ADDA'],['Communication Expenses','51503010','FM- ADDA Gate Keeper'],['Communication Expenses','51503020','FM- Phone Credit'],['Communication Expenses','51503030','FM- Landlines'],
+ ['DEWA','51504000','FM- Electricity'],['DEWA','51504010','FM- Water'],
+ ['Concierge','51505000','FM- Concierge Expenses'],
+ ['Fire Fighting Maintenance','51506000','FM- FF Maintenance'],['Fire Fighting Maintenance','51506010','FM- FA and FF Maintenance'],['Fire Fighting Maintenance','51506020','FM- DCD'],['Fire Fighting Maintenance','51506030','FM- FF Spares and Consumables'],
+ ['Gym Maintenance','51507000','FM- Gym Equipment'],['Gym Maintenance','51507010','FM- Gym Spares and Consumables'],
+ ['Insurance','51508000','FM- Property All Risk'],['Insurance','51508010','FM- 3rd Party Public Liability'],['Insurance','51508020','FM- Electric Cars'],
+ ['Irrigation Water','51509000','FM- Irrigation Water'],
+ ['Community Office','51510000','FM- DEWA (Community Office)'],['Community Office','51510010','FM- Printer Consumables'],['Community Office','51510020','FM- Stationery'],['Community Office','51510030','FM- Pantry Consumables'],['Community Office','51510040','FM- Office Rent'],
+ ['Landscaping and Irrigation','51520000','FM- Landscape'],['Landscaping and Irrigation','51520010','FM- Green Waste Removal'],['Landscaping and Irrigation','51520020','FM- Spares, Consumables & Upgrades'],['Landscaping and Irrigation','51520030','FM- Irrigation Water Pump'],
+ ['Life Guard','51530000','FM- Life Guard'],
+ ['Lift Maintenance','51540000','FM- Plaza Elevators'],['Lift Maintenance','51540010','FM- Plaza Elevator (1) Block A'],['Lift Maintenance','51540020','FM- 3rd Party Certification'],
+ ['MEP Staff','51550000','FM- Technicians 25nos'],['MEP Staff','51550010','FM- MEP Salaries'],
+ ['Management Services','51560000','FM- Community Management'],['Management Services','51560010','FM- Community Relations Officers'],['Management Services','51560020','FM- Facility Support Waqar'],['Management Services','51560030','FM- Gym Instructors'],
+ ['MEP Parts and Spares','51570000','FM- General Consumables'],
+ ['Pest Control','51580000','FM- Pest Control'],['Pots and Herbs','51590000','FM- Herb Vouchers'],['Sanctuary Maintenance','51591000','FM- Animal Sanctuary'],
+ ['Security','51592000','FM- Security'],['Security','51592010','FM- CCTV Operator'],['Security','51592020','FM- Security for Plaza'],
+ ['Sweet Water','51593000','FM- Sweet Water'],
+ ['Swimming Pool Maintenance','51594000','FM- Leisure Pool'],['Swimming Pool Maintenance','51594010','FM- Lap Pool'],
+ ['Football Pitch and Court Maintenance','51595000','FM- Football Pitch'],['Football Pitch and Court Maintenance','51595010','FM- Tennis Court'],
+ ['Waste Collection','51596000','FM- Waste Collection'],['Waste Collection','51596010','FM- Waste Bags'],
+ ['Water Tank Cleaning','51597000','FM- Water Tank Cleaning'],['Contingencies','51598000','FM- Contingencies'],['Appliances','51599000','FM- New Appliances & Repair'],
+].map(([cat,code,name])=>({cat,code,name}));
+const glByCode = c => GL.find(g=>g.code===c);
+
+/* ---------- Supabase client ---------- */
+const CONFIGURED = !CONFIG.SUPABASE_URL.includes('YOUR-PROJECT') && !CONFIG.SUPABASE_ANON_KEY.includes('YOUR-ANON');
+let sb = null;
+if(CONFIGURED && window.supabase){ sb = window.supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY); }
+
+/* ---------- State ---------- */
+const State = { user:null, view:'dashboard', profiles:[], pcs:[], reimb:[], notif:[], log:[], openId:null, draft:null };
+
+/* ---------- Utils ---------- */
+const $ = s=>document.querySelector(s);
+const fmt = n => (Number(n)||0).toLocaleString('en-AE',{minimumFractionDigits:2,maximumFractionDigits:2});
+const aed = n => 'AED '+fmt(n);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const todayISO = () => new Date().toISOString().slice(0,10);
+function timeAgo(t){const ts=+new Date(t);const s=(Date.now()-ts)/1000;if(s<60)return'just now';if(s<3600)return Math.floor(s/60)+'m ago';if(s<86400)return Math.floor(s/3600)+'h ago';return Math.floor(s/86400)+'d ago';}
+function dstr(t){return new Date(t).toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});}
+function initials(n){return (n||'?').split(' ').map(w=>w[0]).slice(0,2).join('').toUpperCase();}
+function avatar(p,size){const s=size||38;const c=(p&&p.color)||'#889';return `<div class="avatar" style="background:${c};width:${s}px;height:${s}px;font-size:${s*0.37}px">${initials(p&&p.name)}</div>`;}
+function toast(m,type){const t=document.createElement('div');t.className='toast '+(type||'');t.innerHTML=(type==='ok'?'✓ ':type==='err'?'⚠ ':'')+esc(m);$('#toasts').appendChild(t);setTimeout(()=>{t.style.opacity='0';t.style.transition='.3s';setTimeout(()=>t.remove(),300);},2800);}
+const profById = id => State.profiles.find(p=>p.id===id) || {name:'—',color:'#889'};
+const pcTotal = pc => (pc.bills||[]).reduce((s,b)=>s+(Number(b.amount)||0),0);
+const idsByRole = r => State.profiles.filter(p=>p.role===r).map(p=>p.id);
+const financeIds = () => idsByRole('finance');
+
+/* ---------- Access helpers ---------- */
+const canEdit    = () => State.user && (State.user.access==='edit' || State.user.is_admin);
+const canPrepare = () => State.user.role==='preparer' && canEdit();
+const canReviewPc  = pc => State.user.role==='reviewer' && canEdit() && pc.status==='review';
+const canApprovePc = pc => State.user.role==='approver' && canEdit() && pc.status==='approve';
+const canReimburse = () => (State.user.role==='finance'||State.user.role==='preparer') && canEdit();
+const isAdmin = () => !!State.user.is_admin;
+
+const STATUS = {draft:{label:'Draft',cls:'draft'},review:{label:'Pending review',cls:'review'},approve:{label:'Pending approval',cls:'approve'},approved:{label:'Approved · for settlement',cls:'done'},rejected:{label:'Returned',cls:'reject'}};
+const statusTag = s => { const m=STATUS[s]||STATUS.draft; return `<span class="tag ${m.cls}">${m.label}</span>`; };
+
+/* ==================================================================
+   AUTH
+   ================================================================== */
+window.App = {};
+async function initAuth(){
+  if(!CONFIGURED || !sb){ showSetupScreen(); return; }
+  const { data:{ session } } = await sb.auth.getSession();
+  if(session){ await afterLogin(); }
+  else { $('#login').style.display='flex'; $('#app').style.display='none'; }
+  sb.auth.onAuthStateChange((_e,s)=>{ if(!s){ $('#app').style.display='none'; $('#login').style.display='flex'; } });
+}
+function showSetupScreen(){
+  $('#login').style.display='flex';
+  $('#loginTitle').textContent='Connect your Supabase project';
+  $('#loginMsg').textContent='This app needs a cloud backend before anyone can sign in.';
+  $('#loginBody').innerHTML=`<div class="info-line" style="line-height:1.6">
+    Open this file and fill the <b>CONFIG</b> block near the top of the script:
+    <div style="background:#0d1a17;color:#cfe0d8;padding:12px;border-radius:10px;margin:12px 0;font-family:monospace;font-size:12px;white-space:pre;overflow:auto">SUPABASE_URL: 'https://xxxx.supabase.co'
+SUPABASE_ANON_KEY: 'eyJhbGci...'</div>
+    Run <b>supabase-setup.sql</b> in the SQL editor, create the six users under
+    <b>Authentication &rarr; Users</b>, then host this file. Full steps are in <b>SETUP.md</b>.</div>`;
+}
+App.signIn = async () => {
+  const email=$('#email').value.trim(), password=$('#password').value;
+  $('#loginErr').textContent=''; const btn=$('#signinBtn'); btn.disabled=true; btn.textContent='Signing in…';
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  btn.disabled=false; btn.textContent='Sign in';
+  if(error){ $('#loginErr').textContent = error.message || 'Sign in failed'; return; }
+  await afterLogin();
+};
+App.signOut = async () => { await sb.auth.signOut(); State.user=null; $('#app').style.display='none'; $('#login').style.display='flex'; $('#password').value=''; };
+
+async function afterLogin(){
+  const { data:{ user } } = await sb.auth.getUser();
+  let { data:prof } = await sb.from('profiles').select('*').eq('id',user.id).single();
+  if(!prof){
+    await sb.from('profiles').insert({id:user.id,email:(user.email||'').toLowerCase(),name:(user.email||'user').split('@')[0]});
+    ({ data:prof } = await sb.from('profiles').select('*').eq('id',user.id).single());
+  }
+  State.user = prof;
+  $('#login').style.display='none'; $('#app').style.display='block';
+  await loadAll(); enterApp(); subscribeRealtime();
+}
+function enterApp(){ buildNav(); renderSidebarUser(); go(State.view||'dashboard'); window.addEventListener('resize',syncMobile); syncMobile(); refreshBell(); }
+function syncMobile(){ $('#menuBtn').style.display = window.innerWidth<=900?'grid':'none'; }
+
+/* ==================================================================
+   DATA
+   ================================================================== */
+async function loadAll(){
+  try{
+    const [P,PC,B,R,N,L] = await Promise.all([
+      sb.from('profiles').select('*'),
+      sb.from('petty_cash').select('*').order('created_at',{ascending:false}),
+      sb.from('bills').select('*').order('sort'),
+      sb.from('reimbursements').select('*').order('received_date',{ascending:false}),
+      sb.from('notifications').select('*').eq('recipient',State.user.id).order('created_at',{ascending:false}).limit(200),
+      sb.from('activity_log').select('*').order('created_at',{ascending:false}).limit(500),
+    ]);
+    State.profiles = P.data||[];
+    const byPc={}; (B.data||[]).forEach(b=>{(byPc[b.petty_cash_id]=byPc[b.petty_cash_id]||[]).push(b);});
+    State.pcs = (PC.data||[]).map(p=>({...p, bills:byPc[p.id]||[]}));
+    State.reimb = R.data||[]; State.notif = N.data||[]; State.log = L.data||[];
+  }catch(e){ console.error(e); toast('Could not load data — check your Supabase setup','err'); }
+}
+App.reload = async () => { await loadAll(); buildNav(); refreshBell(); go(State.view); toast('Refreshed'); };
+
+async function logAct(action, ref, detail){
+  await sb.from('activity_log').insert({actor:State.user.id, action, ref:ref||'', detail:detail||''});
+  State.log.unshift({actor:State.user.id, action, ref:ref||'', detail:detail||'', created_at:new Date().toISOString()});
+}
+async function notify(recipientIds, message, pcId, ref){
+  const rows=[...new Set(recipientIds)].map(r=>({recipient:r, message, petty_cash_id:pcId||null, ref:ref||null}));
+  if(rows.length) await sb.from('notifications').insert(rows);
+}
+function subscribeRealtime(){
+  if(!sb) return;
+  try{
+    sb.channel('notif-'+State.user.id).on('postgres_changes',
+      {event:'INSERT',schema:'public',table:'notifications',filter:`recipient=eq.${State.user.id}`},
+      p=>{ State.notif.unshift(p.new); refreshBell(); toast('New notification'); }).subscribe();
+  }catch(e){}
+}
+
+/* ==================================================================
+   NAV
+   ================================================================== */
+function pendingForUser(){
+  if(State.user.role==='reviewer') return State.pcs.filter(p=>p.status==='review').length;
+  if(State.user.role==='approver') return State.pcs.filter(p=>p.status==='approve').length;
+  return 0;
+}
+function buildNav(){
+  const u=State.user; const pend=pendingForUser(); const items=[];
+  items.push({grp:'Workspace'},{v:'dashboard',label:'Dashboard',ico:'▦'});
+  if(canPrepare()) items.push({v:'create',label:'Create petty cash',ico:'＋'});
+  items.push({v:'list',label:'All petty cash',ico:'≣'});
+  if(u.role==='reviewer'||u.role==='approver') items.push({v:'approvals',label:'My approvals',ico:'✔',badge:pend||null});
+  items.push({grp:'Management'},{v:'reimb',label:'Reimbursements',ico:'⇄'},{v:'search',label:'Advanced search',ico:'⌕'},{v:'accounts',label:'Chart of accounts',ico:'▤'},{v:'activity',label:'Activity log',ico:'◷'});
+  if(u.is_admin) items.push({grp:'Admin'},{v:'users',label:'Users & rights',ico:'⚙'},{v:'admin',label:'Data controls',ico:'⛭'});
+  $('#nav').innerHTML = items.map(it=> it.grp?`<div class="grp">${it.grp}</div>`:
+    `<a data-v="${it.v}" onclick="App.nav('${it.v}')" class="${State.view===it.v?'active':''}"><span class="ico">${it.ico}</span>${it.label}${it.badge?`<span class="badge">${it.badge}</span>`:''}</a>`).join('');
+}
+function renderSidebarUser(){
+  const u=State.user; const acc=canEdit()?'edit':'read';
+  $('#sbUser').innerHTML = avatar(u,34)+`<div class="meta"><b>${esc((u.name||'').split(' ').slice(0,2).join(' '))}</b><span>${esc(roleLabel(u.role))}</span>
+    <div><span class="access-pill ${acc}">${acc==='edit'?'Read & edit':'Read only'}</span></div></div>`;
+}
+function roleLabel(r){return {preparer:'Preparer',reviewer:'Check & Review',approver:'Final Approval',finance:'Finance'}[r]||r;}
+App.nav = v => { if(window.innerWidth<=900) $('#sidebar').classList.remove('open'); go(v); };
+function go(v){
+  State.view=v; State.openId=null; buildNav();
+  document.querySelectorAll('#nav a').forEach(a=>a.classList.toggle('active',a.dataset.v===v));
+  const T={dashboard:['Dashboard','Petty cash overview & management information'],create:['Create petty cash','Upload bills, capture data and assign GL accounts'],list:['All petty cash','Every petty cash and its current stage'],approvals:['My approvals','Petty cash awaiting your action'],reimb:['Reimbursements','Record float top-ups and track the balance'],search:['Advanced search','Find any bill, invoice, merchant or GL entry'],accounts:['Chart of accounts','FMO general ledger reference'],activity:['Activity log','Full audit trail of every action'],users:['Users & rights','Manage who can view and who can edit'],admin:['Data controls','Delete and clear records']};
+  const t=T[v]||['','']; $('#pageTitle').textContent=t[0]; $('#pageSub').textContent=t[1];
+  ({dashboard:renderDashboard,create:renderCreate,list:renderList,approvals:renderApprovals,reimb:renderReimb,search:renderSearch,accounts:renderAccounts,activity:renderActivity,users:renderUsers,admin:renderAdmin}[v]||renderDashboard)();
+}
+
+/* ==================================================================
+   DASHBOARD
+   ================================================================== */
+function periodStats(){
+  const approved=State.pcs.filter(p=>p.status==='approved');
+  const spend=approved.reduce((s,p)=>s+pcTotal(p),0);
+  const received=State.reimb.reduce((s,r)=>s+(Number(r.amount)||0),0);
+  return {approved,spend,received,balance:received-spend,txns:approved.reduce((s,p)=>s+(p.bills||[]).length,0)};
+}
+function glBreakdown(){const m={};State.pcs.filter(p=>p.status==='approved').forEach(p=>(p.bills||[]).forEach(b=>{if(!b.gl_code)return;m[b.gl_code]=m[b.gl_code]||{code:b.gl_code,amt:0,cnt:0};m[b.gl_code].amt+=Number(b.amount)||0;m[b.gl_code].cnt++;}));return Object.values(m).sort((a,b)=>b.amt-a.amt);}
+function merchantBreakdown(){const m={};State.pcs.filter(p=>p.status==='approved').forEach(p=>(p.bills||[]).forEach(b=>{const k=(b.merchant||'Unspecified').trim()||'Unspecified';m[k]=m[k]||{m:k,amt:0,cnt:0};m[k].amt+=Number(b.amount)||0;m[k].cnt++;}));return Object.values(m).sort((a,b)=>b.amt-a.amt);}
+function monthlyBreakdown(){const m={};const add=(k,f,v)=>{m[k]=m[k]||{k,received:0,paid:0};m[k][f]+=v;};State.reimb.forEach(r=>add((r.received_date||'').slice(0,7)||'—','received',Number(r.amount)||0));State.pcs.filter(p=>p.status==='approved').forEach(p=>add((p.approved_at||p.created_at||'').slice(0,7),'paid',pcTotal(p)));return Object.values(m).sort((a,b)=>a.k<b.k?1:-1).slice(0,8);}
+function renderDashboard(){
+  const s=periodStats(),gl=glBreakdown(),merch=merchantBreakdown().slice(0,6),months=monthlyBreakdown();
+  const pr=State.pcs.filter(p=>p.status==='review').length,pa=State.pcs.filter(p=>p.status==='approve').length,glMax=Math.max(1,...gl.map(g=>g.amt));
+  $('#view').innerHTML=`
+  ${State.pcs.length===0?`<div class="warn-banner">No petty cash raised yet. ${canPrepare()?'Use <b>Create petty cash</b> to begin.':'It will appear here once Ahmad Abu Taha raises one.'}</div>`:''}
+  <div class="kpis">
+    <div class="kpi"><span class="strip" style="background:var(--brand)"></span><div class="lbl">Petty cash balance</div><div class="val num">${aed(s.balance)}</div><div class="foot">Received ${aed(s.received)} · Settled ${aed(s.spend)}</div></div>
+    <div class="kpi"><span class="strip" style="background:var(--blue)"></span><div class="lbl">Approved for settlement</div><div class="val num">${aed(s.spend)}</div><div class="foot">${s.approved.length} petty cash · ${s.txns} transactions</div></div>
+    <div class="kpi"><span class="strip" style="background:var(--amber)"></span><div class="lbl">Pending review (Benin)</div><div class="val num">${pr}</div><div class="foot">Awaiting check & review</div></div>
+    <div class="kpi"><span class="strip" style="background:var(--red)"></span><div class="lbl">Pending approval (Shadi)</div><div class="val num">${pa}</div><div class="foot">Awaiting final approval</div></div>
+  </div>
+  <div class="grid" style="grid-template-columns:1.4fr 1fr">
+    <div class="card"><div class="hd"><h3>Actual expense by GL account</h3><div class="spacer"></div><span class="sub">Approved only</span></div>
+      <div class="bd">${gl.length? gl.slice(0,10).map(g=>{const a=glByCode(g.code);return `<div style="margin-bottom:12px"><div style="display:flex;gap:10px;align-items:baseline;margin-bottom:5px"><span style="font-weight:600;font-size:13px">${esc(a?a.name:g.code)}</span><span class="chip" style="padding:1px 7px;font-size:11px">${g.code}</span><div class="spacer"></div><span class="num" style="font-weight:700">${aed(g.amt)}</span><span class="sub num">· ${g.cnt}</span></div><div class="bar-track"><div class="bar-fill" style="width:${(g.amt/glMax*100).toFixed(1)}%"></div></div></div>`;}).join(''):`<div class="empty"><div class="big">No approved spend yet</div>GL breakdown appears once petty cash is approved.</div>`}</div></div>
+    <div class="grid" style="align-content:start">
+      <div class="card"><div class="hd"><h3>Top merchants</h3></div><div class="bd" style="padding:6px 0">${merch.length?`<table><tbody>${merch.map(x=>`<tr><td>${esc(x.m)}</td><td class="right sub num">${x.cnt}×</td><td class="right num" style="font-weight:600">${aed(x.amt)}</td></tr>`).join('')}</tbody></table>`:`<div class="empty" style="padding:26px">No data yet</div>`}</div></div>
+      <div class="card"><div class="hd"><h3>Monthly received vs settled</h3></div><div class="bd" style="padding:6px 0">${months.length?`<table><thead><tr><th>Month</th><th class="right">Received</th><th class="right">Settled</th><th class="right">Net</th></tr></thead><tbody>${months.map(m=>`<tr><td>${m.k}</td><td class="right num">${fmt(m.received)}</td><td class="right num">${fmt(m.paid)}</td><td class="right num" style="font-weight:600;color:${m.received-m.paid<0?'var(--red)':'var(--green)'}">${fmt(m.received-m.paid)}</td></tr>`).join('')}</tbody></table>`:`<div class="empty" style="padding:26px">No data yet</div>`}</div></div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px"><div class="hd"><h3>Recent petty cash</h3><div class="spacer"></div><button class="btn sm" onclick="App.nav('list')">View all</button></div><div class="bd" style="padding:0">${pcTable(State.pcs.slice(0,6))}</div></div>`;
+}
+function pcTable(list){
+  if(!list.length) return `<div class="empty"><div class="big">Nothing here yet</div>Petty cash will show once created.</div>`;
+  return `<table><thead><tr><th>Reference</th><th>Created</th><th>By</th><th class="right">Bills</th><th class="right">Total</th><th>Status</th><th></th></tr></thead><tbody>
+    ${list.map(p=>`<tr><td><b>${esc(p.ref||'(draft)')}</b></td><td class="sub">${new Date(p.created_at).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}</td><td>${esc(profById(p.created_by).name)}</td><td class="right num">${(p.bills||[]).length}</td><td class="right num" style="font-weight:600">${aed(pcTotal(p))}</td><td>${statusTag(p.status)}</td><td class="right"><button class="btn sm" onclick="App.open('${p.id}')">Open</button></td></tr>`).join('')}
+  </tbody></table>`;
+}
+
+/* ==================================================================
+   LIST / APPROVALS
+   ================================================================== */
+function renderList(){
+  const c={all:State.pcs.length};['draft','review','approve','approved','rejected'].forEach(s=>c[s]=State.pcs.filter(p=>p.status===s).length);
+  $('#view').innerHTML=`<div class="card"><div class="bd" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><span class="sub" style="font-weight:600;margin-right:4px">Filter:</span>${[['all','All'],['draft','Draft'],['review','Pending review'],['approve','Pending approval'],['approved','Approved'],['rejected','Returned']].map(([k,l])=>`<button class="btn sm" data-f="${k}" onclick="App.filterList('${k}')">${l} <span class="sub num">(${c[k]||0})</span></button>`).join('')}</div></div><div class="card" style="margin-top:14px"><div class="bd" style="padding:0" id="listBody"></div></div>`;
+  App.filterList('all');
+}
+App.filterList = f => { document.querySelectorAll('[data-f]').forEach(b=>b.classList.toggle('primary',b.dataset.f===f)); $('#listBody').innerHTML=pcTable(f==='all'?State.pcs:State.pcs.filter(p=>p.status===f)); };
+function renderApprovals(){
+  const want=State.user.role==='reviewer'?'review':'approve';
+  $('#view').innerHTML=`<div class="warn-banner" style="background:var(--blue-bg);border-color:#cfe0f0;color:#284a6b">${State.user.role==='reviewer'?'Check every bill, invoice, reason and GL account, then approve to forward to Shadi Girgis for final approval.':'Review who prepared and who checked, then give final approval to raise this to Finance for settlement.'}</div><div class="card"><div class="bd" style="padding:0">${pcTable(State.pcs.filter(p=>p.status===want))}</div></div>`;
+}
+
+/* ==================================================================
+   CREATE  (Taha, edit access)
+   ================================================================== */
+async function renderCreate(){
+  if(!canPrepare()){ $('#view').innerHTML=`<div class="empty"><div class="big">Preparation is Ahmad Abu Taha's step</div>You need preparer role with edit access.</div>`; return; }
+  if(!State.draft){
+    let mine=State.pcs.find(p=>p.status==='draft'&&p.created_by===State.user.id&&(p.bills||[]).length===0);
+    if(!mine){ const {data,error}=await sb.from('petty_cash').insert({status:'draft',created_by:State.user.id}).select().single();
+      if(error){toast('Could not start draft','err');return;} data.bills=[]; State.pcs.unshift(data); mine=data; }
+    State.draft=mine;
+  }
+  drawCreate();
+}
+function drawCreate(){
+  const d=State.draft,total=pcTotal(d),dup=(d.bills||[]).filter(b=>b.is_duplicate).length;
+  $('#view').innerHTML=`
+  <div class="card" style="margin-bottom:16px"><div class="bd" style="display:flex;gap:20px;align-items:center;flex-wrap:wrap">
+    <div><div class="sub">Reference</div><div style="font-weight:700;font-size:15px">${d.ref?esc(d.ref):'<span class="sub" style="font-weight:500">Generated on finalisation</span>'}</div></div>
+    <div style="width:1px;height:34px;background:var(--line-2)"></div>
+    <div><div class="sub">Created</div><div style="font-weight:600">${dstr(d.created_at)}</div></div>
+    <div style="width:1px;height:34px;background:var(--line-2)"></div>
+    <div><div class="sub">Prepared by</div><div style="font-weight:600">${esc(State.user.name)}</div></div>
+    <div class="spacer"></div><div style="text-align:right"><div class="sub">Bills · Total</div><div style="font-weight:800;font-size:18px" class="num">${(d.bills||[]).length} · ${aed(total)}</div></div>
+  </div></div>
+  ${dup?`<div class="warn-banner" style="background:var(--red-bg);border-color:#e6b3ae;color:#7a2a2a">⚠ ${dup} possible duplicate ${dup>1?'bills':'bill'} detected and highlighted below.</div>`:''}
+  <div class="card" style="margin-bottom:16px"><div class="hd"><h3>1 · Upload bills & invoices</h3><div class="spacer"></div><span class="sub">Images or PDF · one-by-one or bulk</span></div>
+    <div class="bd"><div class="dropzone" id="dz" onclick="document.getElementById('fileInp').click()"><div style="font-size:26px">⇪</div><div class="big">Drop bills here or click to browse</div><div class="small">JPG, PNG or PDF. Files go straight to shared cloud storage and are read automatically.</div></div>
+    <input type="file" id="fileInp" multiple accept="image/*,application/pdf" style="display:none" onchange="App.filesPicked(this.files)"></div></div>
+  <div class="card"><div class="hd"><h3>2 · Captured lines</h3><div class="spacer"></div><span class="sub">Edit any field, then assign the reason / GL account</span></div>
+    <div class="bd" id="billsBox">${(d.bills||[]).length? d.bills.map(billRow).join('') : `<div class="empty"><div class="big">No bills uploaded yet</div>Upload bills above to begin capturing.</div>`}</div></div>
+  <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+    <div class="spacer"></div>
+    <button class="btn ghost danger" onclick="App.discardDraft()">Discard</button>
+    <button class="btn primary" onclick="App.finalise()" ${(d.bills||[]).length===0?'disabled':''}>Finalise & send for review →</button>
+  </div>`;
+  wireDropzone();
+}
+function billRow(b){
+  const glOpts=`<option value="">— Select reason / GL —</option>`+GL.map(g=>`<option value="${g.code}" ${b.gl_code===g.code?'selected':''}>${g.cat} · ${g.name} (${g.code})</option>`).join('');
+  const thumb=b._thumb?`<img src="${b._thumb}">`:`<div class="ph">${(b.mime||'').includes('pdf')?'PDF':'FILE'}</div>`;
+  return `<div class="bill ${b.is_duplicate?'dup':''}" data-b="${b.id}">
+    <div class="thumb">${thumb}</div>
+    <div><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><span style="font-weight:600;font-size:13px">${esc(b.file_name||'bill')}</span>${b.is_duplicate?'<span class="tag dup">Possible duplicate</span>':''}<div class="spacer"></div><div class="st" id="st-${b.id}">${b._analyzing?'<span class="spin"></span> Reading…':(b._analyzed?'<span style="color:var(--green)">✓ Auto-captured</span>':'Manual entry')}</div><button class="btn ghost sm danger" onclick="App.removeBill('${b.id}')">Remove</button></div>
+    <div class="fields">
+      <div class="field"><label>Date</label><input class="input" type="date" value="${esc(b.bill_date||'')}" onchange="App.editBill('${b.id}','bill_date',this.value)"></div>
+      <div class="field"><label>Merchant</label><input class="input" value="${esc(b.merchant||'')}" placeholder="Merchant name" onchange="App.editBill('${b.id}','merchant',this.value)"></div>
+      <div class="field"><label>Invoice / ref</label><input class="input" value="${esc(b.invoice||'')}" placeholder="No." onchange="App.editBill('${b.id}','invoice',this.value)"></div>
+      <div class="field"><label>Amount (AED)</label><input class="input num" type="number" step="0.01" value="${b.amount!=null?b.amount:''}" placeholder="0.00" onchange="App.editBill('${b.id}','amount',this.value)"></div>
+    </div>
+    <div class="fields2"><div class="field" style="margin:0"><label>Reason of payment · GL account</label><select class="input" onchange="App.editBill('${b.id}','gl_code',this.value)">${glOpts}</select></div>
+    <div class="field" style="margin:0;min-width:220px"><label>Remark / notes</label><input class="input" value="${esc(b.remark||'')}" placeholder="Additional details" onchange="App.editBill('${b.id}','remark',this.value)"></div></div></div></div>`;
+}
+function wireDropzone(){const dz=$('#dz');if(!dz)return;['dragover','dragenter'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.add('drag');}));['dragleave','drop'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.remove('drag');}));dz.addEventListener('drop',ev=>{if(ev.dataTransfer.files.length)App.filesPicked(ev.dataTransfer.files);});}
+
+App.filesPicked = async files => {
+  for(const f of files){
+    const billId = (crypto.randomUUID? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2));
+    const path = `${State.draft.id}/${billId}_${f.name.replace(/[^\w.\-]/g,'_')}`;
+    let uploaded=true;
+    try{ const {error}=await sb.storage.from(CONFIG.BILLS_BUCKET).upload(path,f,{upsert:true,contentType:f.type}); if(error) throw error; }
+    catch(e){ uploaded=false; toast('Upload failed for '+f.name,'err'); }
+    const rec={id:billId,petty_cash_id:State.draft.id,file_name:f.name,mime:f.type,file_path:uploaded?path:null,bill_date:'',merchant:'',invoice:'',amount:null,gl_code:'',remark:'',is_duplicate:false,sort:(State.draft.bills||[]).length};
+    await sb.from('bills').insert(rec);
+    rec._thumb = f.type.startsWith('image/')? await thumb(f):null;
+    rec._analyzing=true;
+    State.draft.bills.push(rec); drawCreate();
+    analyzeBill(rec,f).finally(async()=>{ await checkDuplicate(rec); await sb.from('bills').update({bill_date:rec.bill_date,merchant:rec.merchant,invoice:rec.invoice,amount:rec.amount,is_duplicate:rec.is_duplicate}).eq('id',rec.id); drawCreate(); });
+  }
+};
+function thumb(f){return new Promise(res=>{const r=new FileReader();r.onload=()=>{const i=new Image();i.onload=()=>{let w=i.width,h=i.height;const s=Math.min(1,300/Math.max(w,h));w*=s;h*=s;const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(i,0,0,w,h);res(c.toDataURL('image/jpeg',0.7));};i.onerror=()=>res(null);i.src=r.result;};r.onerror=()=>res(null);r.readAsDataURL(f);});}
+function toBase64(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(f);});}
+
+async function analyzeBill(rec,file){
+  const isImg=(rec.mime||'').startsWith('image/'),isPdf=(rec.mime||'').includes('pdf');
+  if(!isImg&&!isPdf){ rec._analyzing=false; if(!rec.bill_date) rec.bill_date=todayISO(); return; }
+  try{
+    const b64=await toBase64(file); let j=null;
+    if(CONFIG.EDGE_ANALYZE_URL){
+      const {data:{session}}=await sb.auth.getSession();
+      const r=await fetch(CONFIG.EDGE_ANALYZE_URL,{method:'POST',headers:{'Content-Type':'application/json',apikey:CONFIG.SUPABASE_ANON_KEY,Authorization:'Bearer '+((session&&session.access_token)||'')},body:JSON.stringify({fileBase64:b64,mime:rec.mime})});
+      j=await r.json();
+    } else if(CONFIG.ANTHROPIC_API_KEY){
+      const block=isPdf?{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}}:{type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}};
+      const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':CONFIG.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,messages:[{role:'user',content:[block,{type:'text',text:'Extract and reply ONLY JSON {"date":"YYYY-MM-DD","merchant":"","invoice":"","amount":0}. amount=final total number only.'}]}]})});
+      const d=await r.json(); const t=(d.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n'); j=JSON.parse(t.replace(/```json|```/g,'').trim());
+    } else { rec._analyzing=false; if(!rec.bill_date) rec.bill_date=todayISO(); return; }
+    if(j&&!j.error){
+      if(j.date&&/^\d{4}-\d{2}-\d{2}$/.test(j.date)) rec.bill_date=j.date; else if(!rec.bill_date) rec.bill_date=todayISO();
+      rec.merchant=j.merchant||rec.merchant||''; rec.invoice=j.invoice||rec.invoice||'';
+      if(j.amount!=null&&!isNaN(j.amount)) rec.amount=Number(j.amount);
+      rec._analyzed=true;
+    } else if(!rec.bill_date) rec.bill_date=todayISO();
+  }catch(e){ console.warn('analyze',e); if(!rec.bill_date) rec.bill_date=todayISO(); }
+  finally{ rec._analyzing=false; }
+}
+async function checkDuplicate(rec){
+  const key=(inv,amt)=>((inv||'').trim().toLowerCase())+'|'+(Number(amt)||0).toFixed(2);
+  if(!rec.invoice){ rec.is_duplicate=false; return; }
+  const mine=key(rec.invoice,rec.amount); let dup=false;
+  State.pcs.forEach(p=>(p.bills||[]).forEach(o=>{ if(o.id!==rec.id && key(o.invoice,o.amount)===mine) dup=true; }));
+  rec.is_duplicate=dup; if(dup) toast('Possible duplicate: '+(rec.file_name||'bill'),'err');
+}
+App.editBill = async (id,f,v)=>{ const b=State.draft.bills.find(x=>x.id===id); if(!b)return; b[f]=f==='amount'?(v===''?null:Number(v)):v;
+  if(f==='invoice'||f==='amount') await checkDuplicate(b);
+  await sb.from('bills').update({[f]:b[f],is_duplicate:b.is_duplicate}).eq('id',id); drawCreate(); };
+App.removeBill = async id => { const b=State.draft.bills.find(x=>x.id===id); if(b&&b.file_path){ try{await sb.storage.from(CONFIG.BILLS_BUCKET).remove([b.file_path]);}catch(e){} } await sb.from('bills').delete().eq('id',id); State.draft.bills=State.draft.bills.filter(x=>x.id!==id); drawCreate(); };
+App.discardDraft = async () => { const d=State.draft; for(const b of (d.bills||[])){ if(b.file_path){try{await sb.storage.from(CONFIG.BILLS_BUCKET).remove([b.file_path]);}catch(e){}} } await sb.from('petty_cash').delete().eq('id',d.id); State.pcs=State.pcs.filter(p=>p.id!==d.id); State.draft=null; toast('Draft discarded'); go('list'); };
+App.finalise = async () => {
+  const d=State.draft; const noGl=(d.bills||[]).filter(b=>!b.gl_code).length, noAmt=(d.bills||[]).filter(b=>!b.amount).length;
+  if(noGl){toast(`${noGl} bill(s) have no GL account`,'err');return;} if(noAmt){toast(`${noAmt} bill(s) have no amount`,'err');return;}
+  const dup=(d.bills||[]).filter(b=>b.is_duplicate).length;
+  const run=async()=>{
+    const {data:ref}=await sb.rpc('assign_ref',{pc:d.id});
+    await sb.from('petty_cash').update({status:'review',finalised_at:new Date().toISOString(),ref}).eq('id',d.id);
+    d.ref=ref; d.status='review'; d.finalised_at=new Date().toISOString();
+    await logAct('Finalised petty cash',ref,`${d.bills.length} bill(s) · ${aed(pcTotal(d))}`);
+    await notify(idsByRole('reviewer'),`${State.user.name} finalised petty cash ${ref} (${aed(pcTotal(d))}). Ready for your check & review.`,d.id,ref);
+    State.draft=null; closeModal(); toast('Finalised — Benin notified','ok'); await loadAll(); buildNav(); go('list');
+  };
+  if(dup) confirmModal('Duplicates present',`${dup} possible duplicate bill(s) are still flagged. Finalise anyway?`,'Finalise anyway',run); else run();
+};
+
+/* ==================================================================
+   DETAIL / APPROVAL
+   ================================================================== */
+App.open = id => { State.openId=id; renderDetail(id); };
+function stepperHTML(pc){
+  const rej=pc.status==='rejected';
+  const steps=[{t:'Prepared',u:pc.created_by,done:true},{t:'Check & review',u:pc.reviewed_by||idsByRole('reviewer')[0],done:['approve','approved'].includes(pc.status),active:pc.status==='review'},{t:'Final approval',u:pc.approved_by||idsByRole('approver')[0],done:pc.status==='approved',active:pc.status==='approve'},{t:'Finance settlement',u:null,done:pc.status==='approved'}];
+  return `<div class="stepper">${steps.map((s,i)=>{let cls=s.done?'done':(s.active?'active':'');if(rej&&((i===1&&!pc.reviewed_by)||(i===2&&pc.reviewed_by)))cls='reject';const p=s.u?profById(s.u):null;return `<div class="step ${cls}"><div class="node"><div class="circle">${s.done?'✓':(i+1)}</div><div class="who"><b>${s.t}</b><span>${p?esc(p.name):'Dushan · Alkhudary · Jafer'}</span></div></div><div class="bar"></div></div>`;}).join('')}</div>`;
+}
+function renderDetail(id){
+  const pc=State.pcs.find(p=>p.id===id); if(!pc){go('list');return;}
+  const total=pcTotal(pc),dup=(pc.bills||[]).filter(b=>b.is_duplicate).length;
+  $('#pageTitle').textContent=pc.ref||'Petty cash'; $('#pageSub').textContent=`${(pc.bills||[]).length} bills · ${aed(total)}`;
+  const rv=canReviewPc(pc),ap=canApprovePc(pc),owner=State.user.role==='preparer'&&pc.status==='draft'&&pc.created_by===State.user.id&&canEdit();
+  $('#view').innerHTML=`
+  <button class="btn ghost sm" style="margin-bottom:12px" onclick="App.nav('${State.user.role==='reviewer'||State.user.role==='approver'?'approvals':'list'}')">← Back</button>
+  <div class="card" style="margin-bottom:16px"><div class="bd">${stepperHTML(pc)}</div></div>
+  ${pc.status==='rejected'&&pc.reject_reason?`<div class="warn-banner" style="background:var(--red-bg);border-color:#e6b3ae;color:#7a2a2a">Returned by ${esc(profById(pc.rejected_by).name)}: “${esc(pc.reject_reason)}”</div>`:''}
+  ${dup?`<div class="warn-banner" style="background:var(--red-bg);border-color:#e6b3ae;color:#7a2a2a">⚠ ${dup} bill(s) flagged as possible duplicates.</div>`:''}
+  <div class="grid" style="grid-template-columns:1fr 300px">
+    <div class="card"><div class="hd"><h3>Bills & invoices</h3><div class="spacer"></div><span class="sub">${(pc.bills||[]).length} lines</span></div>
+      <div class="bd" style="padding:0"><table><thead><tr><th></th><th>Date</th><th>Merchant</th><th>Invoice</th><th>GL / Reason</th><th class="right">Amount</th></tr></thead><tbody>
+      ${(pc.bills||[]).map(b=>{const g=glByCode(b.gl_code);return `<tr><td style="width:40px">${b.file_path?`<button class="chip" style="padding:2px 8px;font-size:10px;cursor:pointer" onclick="App.viewBill('${b.id}')">${(b.mime||'').includes('pdf')?'PDF':'IMG'}</button>`:'—'}</td><td class="num">${esc(b.bill_date||'—')} ${b.is_duplicate?'<span class="tag dup" style="margin-left:4px">dup</span>':''}</td><td>${esc(b.merchant||'—')}</td><td class="sub">${esc(b.invoice||'—')}</td><td><div style="font-size:12.5px">${g?esc(g.name):'—'}</div>${g?`<div class="sub num" style="font-size:11px">${g.code} · ${g.cat}</div>`:''}${b.remark?`<div class="sub" style="font-size:11px;font-style:italic">“${esc(b.remark)}”</div>`:''}</td><td class="right num" style="font-weight:600">${aed(b.amount)}</td></tr>`;}).join('')}
+      <tr style="background:#fafbfa"><td colspan="5" class="right" style="font-weight:700">Total</td><td class="right num" style="font-weight:800;font-size:15px">${aed(total)}</td></tr></tbody></table></div></div>
+    <div class="grid" style="align-content:start">
+      <div class="card"><div class="hd"><h3>Approval trail</h3></div><div class="bd">
+        ${trailRow('Prepared by',profById(pc.created_by),pc.finalised_at||pc.created_at)}
+        ${pc.reviewed_by?trailRow('Checked & reviewed',profById(pc.reviewed_by),pc.reviewed_at):trailRow('Check & review','pending')}
+        ${pc.approved_by?trailRow('Approved by',profById(pc.approved_by),pc.approved_at):trailRow('Final approval','pending')}
+        ${pc.status==='approved'?`<div class="divider"></div><div class="info-line">Raised to Finance (Dushan, Ahmed Al Khudary, Mr Jafer) for settlement.</div>`:''}
+      </div></div>
+      ${(rv||ap)?`<div class="card"><div class="hd"><h3>Your action</h3></div><div class="bd"><div class="info-line" style="margin-bottom:12px">${rv?'Confirm the bills, reasons and GL accounts are correct.':'Give final approval to raise this to Finance for settlement.'}</div><button class="btn primary block" onclick="App.approve('${pc.id}')">${rv?'Approve & forward to Shadi':'Give final approval'}</button><button class="btn danger block" style="margin-top:9px" onclick="App.reject('${pc.id}')">Return to preparer</button></div></div>`:''}
+      ${owner?`<div class="card"><div class="bd"><button class="btn primary block" onclick="App.resume('${pc.id}')">Continue editing draft</button></div></div>`:''}
+      ${isAdmin()?`<div class="card"><div class="hd"><h3>Admin</h3></div><div class="bd"><button class="btn danger block" onclick="App.adminDelete('${pc.id}')">Delete this petty cash</button></div></div>`:''}
+    </div>
+  </div>`;
+}
+function trailRow(label,p,ts){ if(p==='pending')return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0"><div class="avatar" style="background:#e7ebe6;color:#9aa79f;width:32px;height:32px;font-size:12px">…</div><div><b style="font-size:12.5px">${label}</b><div class="sub" style="font-size:11.5px">Pending</div></div></div>`; return `<div style="display:flex;align-items:center;gap:10px;padding:7px 0">${avatar(p,32)}<div><b style="font-size:12.5px">${esc(p.name)}</b><div class="sub" style="font-size:11.5px">${label}${ts?' · '+dstr(ts):''}</div></div></div>`; }
+App.viewBill = async bid => {
+  let b=null; State.pcs.forEach(p=>(p.bills||[]).forEach(x=>{if(x.id===bid)b=x;}));
+  if(!b||!b.file_path){toast('No file');return;}
+  const {data,error}=await sb.storage.from(CONFIG.BILLS_BUCKET).createSignedUrl(b.file_path,3600);
+  if(error){toast('Could not open file','err');return;}
+  $('#modalTitle').textContent=b.file_name||'Bill';
+  $('#modalBody').innerHTML=(b.mime||'').includes('pdf')?`<iframe src="${data.signedUrl}" style="width:100%;height:60vh;border:1px solid var(--line);border-radius:10px"></iframe>`:`<img src="${data.signedUrl}" style="width:100%;border-radius:10px">`;
+  $('#modalFoot').innerHTML=`<a class="btn" href="${data.signedUrl}" target="_blank">Open in new tab</a><button class="btn" onclick="App.closeModal()">Close</button>`;
+  $('#modalWrap').classList.add('show');
+};
+App.resume = id => { State.draft=State.pcs.find(p=>p.id===id); go('create'); };
+App.approve = async id => {
+  const pc=State.pcs.find(p=>p.id===id);
+  if(State.user.role==='reviewer'){
+    await sb.from('petty_cash').update({status:'approve',reviewed_by:State.user.id,reviewed_at:new Date().toISOString()}).eq('id',id);
+    await logAct('Reviewed & approved',pc.ref);
+    await notify(idsByRole('approver'),`${State.user.name} approved petty cash ${pc.ref} (${aed(pcTotal(pc))}), prepared by ${profById(pc.created_by).name}. Awaiting your final approval.`,pc.id,pc.ref);
+    toast('Approved — Shadi notified','ok');
+  } else if(State.user.role==='approver'){
+    await sb.from('petty_cash').update({status:'approved',approved_by:State.user.id,approved_at:new Date().toISOString()}).eq('id',id);
+    await logAct('Final approval',pc.ref,aed(pcTotal(pc)));
+    await notify(financeIds(),`Approved petty cash ${pc.ref} (${aed(pcTotal(pc))}) has been raised from TSC FM for settlement. Prepared by ${profById(pc.created_by).name}, reviewed by ${profById(pc.reviewed_by).name}, approved by ${State.user.name}.`,pc.id,pc.ref);
+    toast('Final approval given — Finance notified','ok');
+  }
+  await loadAll(); buildNav(); renderDetail(id);
+};
+App.reject = id => { promptModal('Return to preparer','Reason for returning this petty cash','e.g. Bill on line 3 missing / wrong GL', async reason=>{ if(!reason)return; const pc=State.pcs.find(p=>p.id===id);
+  await sb.from('petty_cash').update({status:'rejected',rejected_by:State.user.id,rejected_at:new Date().toISOString(),reject_reason:reason}).eq('id',id);
+  await logAct('Returned petty cash',pc.ref,reason);
+  await notify([pc.created_by],`${State.user.name} returned petty cash ${pc.ref}: “${reason}”. Please correct and re-submit.`,pc.id,pc.ref);
+  toast('Returned to preparer'); await loadAll(); buildNav(); renderDetail(id); }); };
+
+/* ==================================================================
+   REIMBURSEMENTS
+   ================================================================== */
+function renderReimb(){
+  const s=periodStats();
+  $('#view').innerHTML=`<div class="kpis" style="grid-template-columns:repeat(3,1fr)">
+    <div class="kpi"><span class="strip" style="background:var(--brand)"></span><div class="lbl">Total received</div><div class="val num">${aed(s.received)}</div></div>
+    <div class="kpi"><span class="strip" style="background:var(--blue)"></span><div class="lbl">Total settled</div><div class="val num">${aed(s.spend)}</div></div>
+    <div class="kpi"><span class="strip" style="background:${s.balance<0?'var(--red)':'var(--green)'}"></span><div class="lbl">Current balance</div><div class="val num">${aed(s.balance)}</div></div></div>
+  <div class="card"><div class="hd"><h3>Reimbursements received</h3><div class="spacer"></div>${canReimburse()?`<button class="btn primary sm" onclick="App.addReimb()">＋ Record reimbursement</button>`:''}</div>
+    <div class="bd" style="padding:0">${State.reimb.length?`<table><thead><tr><th>Received date</th><th>Reference</th><th>Note</th><th>Recorded by</th><th class="right">Amount</th>${isAdmin()?'<th></th>':''}</tr></thead><tbody>${State.reimb.map(r=>`<tr><td class="num">${esc(r.received_date||'—')}</td><td>${esc(r.ref||'—')}</td><td class="sub">${esc(r.note||'')}</td><td>${esc(profById(r.created_by).name)}</td><td class="right num" style="font-weight:600">${aed(r.amount)}</td>${isAdmin()?`<td class="right"><button class="btn ghost sm danger" onclick="App.delReimb('${r.id}')">Delete</button></td>`:''}</tr>`).join('')}</tbody></table>`:`<div class="empty"><div class="big">No reimbursements recorded</div>Record float top-ups here to track the running balance.</div>`}</div></div>`;
+}
+App.addReimb = () => { $('#modalTitle').textContent='Record reimbursement'; $('#modalBody').innerHTML=`<div class="row"><div class="field"><label>Received date</label><input id="rDate" class="input" type="date" value="${todayISO()}"></div><div class="field"><label>Amount (AED)</label><input id="rAmt" class="input num" type="number" step="0.01" placeholder="0.00"></div></div><div class="field"><label>Reference (optional)</label><input id="rRef" class="input" placeholder="Transfer / cheque no."></div><div class="field"><label>Note (optional)</label><input id="rNote" class="input" placeholder="e.g. Monthly float top-up"></div>`; $('#modalFoot').innerHTML=`<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn primary" onclick="App.saveReimb()">Record</button>`; $('#modalWrap').classList.add('show'); };
+App.saveReimb = async () => { const amt=Number($('#rAmt').value); if(!amt||amt<=0){toast('Enter a valid amount','err');return;} const rec={received_date:$('#rDate').value||todayISO(),amount:amt,ref:$('#rRef').value.trim(),note:$('#rNote').value.trim(),created_by:State.user.id}; const {data}=await sb.from('reimbursements').insert(rec).select().single(); if(data)State.reimb.unshift(data); await logAct('Recorded reimbursement',rec.ref||'',aed(amt)); closeModal(); toast('Reimbursement recorded','ok'); renderReimb(); };
+App.delReimb = async id => { await sb.from('reimbursements').delete().eq('id',id); State.reimb=State.reimb.filter(r=>r.id!==id); await logAct('Deleted reimbursement',''); renderReimb(); };
+
+/* ==================================================================
+   SEARCH / ACCOUNTS / ACTIVITY
+   ================================================================== */
+function renderSearch(){ $('#view').innerHTML=`<div class="card"><div class="bd"><div class="row" style="align-items:end"><div class="field" style="margin:0"><label>Search bills, merchants, invoices, remarks, references</label><input id="q" class="input" placeholder="Type to search…" oninput="App.runSearch()"></div><div class="field" style="margin:0;max-width:260px"><label>GL account</label><select id="qgl" class="input" onchange="App.runSearch()"><option value="">All GL accounts</option>${GL.map(g=>`<option value="${g.code}">${g.name} (${g.code})</option>`).join('')}</select></div></div></div></div><div class="card" style="margin-top:14px"><div class="bd" style="padding:0" id="searchRes"></div></div>`; App.runSearch(); }
+App.runSearch = () => { const q=($('#q').value||'').toLowerCase().trim(),gl=$('#qgl').value,rows=[]; State.pcs.forEach(p=>(p.bills||[]).forEach(b=>{ if(gl&&b.gl_code!==gl)return; const hay=[p.ref,b.merchant,b.invoice,b.remark,b.bill_date,glByCode(b.gl_code)?glByCode(b.gl_code).name:'',String(b.amount)].join(' ').toLowerCase(); if(q&&!hay.includes(q))return; rows.push({p,b}); })); const hi=t=>{t=esc(t||'');if(!q)return t;return t.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'),'<span class="hl">$1</span>');}; $('#searchRes').innerHTML=rows.length?`<table><thead><tr><th>Reference</th><th>Date</th><th>Merchant</th><th>Invoice</th><th>GL</th><th class="right">Amount</th><th>Status</th><th></th></tr></thead><tbody>${rows.slice(0,300).map(({p,b})=>{const g=glByCode(b.gl_code);return `<tr><td><b>${hi(p.ref)}</b></td><td class="num">${hi(b.bill_date)}</td><td>${hi(b.merchant)}</td><td class="sub">${hi(b.invoice)}</td><td class="sub">${g?hi(g.name):'—'}</td><td class="right num" style="font-weight:600">${aed(b.amount)}</td><td>${statusTag(p.status)}</td><td class="right"><button class="btn sm" onclick="App.open('${p.id}')">Open</button></td></tr>`;}).join('')}</tbody></table>`:`<div class="empty"><div class="big">No matches</div>Try a different term, merchant or GL account.</div>`; };
+function renderAccounts(){ const cats=[...new Set(GL.map(g=>g.cat))]; $('#view').innerHTML=`<div class="card"><div class="hd"><h3>FM Operations · Chart of accounts</h3><div class="spacer"></div><span class="sub">${GL.length} GL accounts · parent 51500000</span></div><div class="bd" style="padding:0"><table><thead><tr><th>Category</th><th>GL code</th><th>Account name</th></tr></thead><tbody>${cats.map(c=>{const rows=GL.filter(g=>g.cat===c);return rows.map((g,i)=>`<tr>${i===0?`<td rowspan="${rows.length}" style="font-weight:600;vertical-align:top;background:#fafbfa">${esc(c)}</td>`:''}<td class="num" style="font-weight:600">${g.code}</td><td>${esc(g.name)}</td></tr>`).join('');}).join('')}</tbody></table></div></div>`; }
+function renderActivity(){ $('#view').innerHTML=`<div class="card"><div class="hd"><h3>Activity log</h3><div class="spacer"></div><span class="sub">${State.log.length} entries</span></div><div class="bd" style="padding:0">${State.log.length?`<table><thead><tr><th>When</th><th>User</th><th>Action</th><th>Reference</th><th>Detail</th></tr></thead><tbody>${State.log.map(l=>`<tr><td class="sub num">${dstr(l.created_at)}</td><td>${esc(profById(l.actor).name)}</td><td style="font-weight:600">${esc(l.action)}</td><td class="num">${esc(l.ref||'')}</td><td class="sub">${esc(l.detail||'')}</td></tr>`).join('')}</tbody></table>`:`<div class="empty"><div class="big">No activity yet</div>Actions across the system are recorded here.</div>`}</div></div>`; }
+
+/* ==================================================================
+   USERS & RIGHTS  (admin)
+   ================================================================== */
+function renderUsers(){
+  if(!isAdmin()){ $('#view').innerHTML=`<div class="empty"><div class="big">Admin access required</div>Only admins can manage rights.</div>`; return; }
+  $('#view').innerHTML=`<div class="warn-banner">Set each person's access level. <b>Read only</b> can view everything but cannot create, edit or approve. <b>Read & edit</b> can act on their role. Changes apply immediately (they may need to refresh).</div>
+  <div class="card"><div class="hd"><h3>Users</h3><div class="spacer"></div><span class="sub">${State.profiles.length} accounts</span></div>
+  <div class="bd" style="padding:0"><table><thead><tr><th>User</th><th>Role</th><th>Access level</th><th>Admin</th></tr></thead><tbody>
+    ${State.profiles.slice().sort((a,b)=>a.name.localeCompare(b.name)).map(p=>`<tr>
+      <td><div style="display:flex;align-items:center;gap:10px">${avatar(p,32)}<div><b>${esc(p.name)}</b><div class="sub" style="font-size:11.5px">${esc(p.email)}</div></div></div></td>
+      <td><select class="input" style="padding:6px 9px;min-width:130px" onchange="App.setUser('${p.id}','role',this.value)">${['preparer','reviewer','approver','finance'].map(r=>`<option value="${r}" ${p.role===r?'selected':''}>${roleLabel(r)}</option>`).join('')}</select></td>
+      <td><div class="seg"><button class="${p.access==='read'?'on':''}" onclick="App.setUser('${p.id}','access','read')">Read only</button><button class="${p.access==='edit'?'on':''}" onclick="App.setUser('${p.id}','access','edit')">Read & edit</button></div></td>
+      <td><input type="checkbox" ${p.is_admin?'checked':''} onchange="App.setUser('${p.id}','is_admin',this.checked)" style="width:18px;height:18px"></td>
+    </tr>`).join('')}
+  </tbody></table></div></div>`;
+}
+App.setUser = async (id,field,value) => {
+  const {error}=await sb.from('profiles').update({[field]:value}).eq('id',id);
+  if(error){toast('Update failed — '+error.message,'err');return;}
+  const p=State.profiles.find(x=>x.id===id); if(p)p[field]=value;
+  if(id===State.user.id){ State.user[field]=value; renderSidebarUser(); buildNav(); }
+  await logAct('Changed user rights', '', `${profById(id).name}: ${field} → ${value}`);
+  toast('Updated','ok'); renderUsers();
+};
+
+/* ==================================================================
+   DATA CONTROLS (admin)
+   ================================================================== */
+function renderAdmin(){
+  if(!isAdmin()){ $('#view').innerHTML=`<div class="empty"><div class="big">Admin access required</div></div>`; return; }
+  $('#view').innerHTML=`<div class="warn-banner">Admin actions are irreversible and are written to the activity log.</div>
+  <div class="grid" style="grid-template-columns:1fr 1fr">
+    <div class="card"><div class="hd"><h3>Petty cash records</h3></div><div class="bd" style="padding:0">${State.pcs.length?`<table><thead><tr><th>Reference</th><th>Status</th><th class="right">Total</th><th></th></tr></thead><tbody>${State.pcs.map(p=>`<tr><td><b>${esc(p.ref||'(draft)')}</b></td><td>${statusTag(p.status)}</td><td class="right num">${aed(pcTotal(p))}</td><td class="right"><button class="btn ghost sm" onclick="App.open('${p.id}')">Open</button><button class="btn ghost sm danger" onclick="App.adminDelete('${p.id}')">Delete</button></td></tr>`).join('')}</tbody></table>`:`<div class="empty" style="padding:26px">No records</div>`}</div></div>
+    <div class="grid" style="align-content:start">
+      <div class="card"><div class="hd"><h3>Bulk data</h3></div><div class="bd"><p class="info-line" style="margin-top:0">Remove all petty cash, bills, reimbursements, notifications and the activity log. Users and the chart of accounts are kept.</p><button class="btn danger block" onclick="App.clearAll()">Clear all data</button></div></div>
+      <div class="card"><div class="hd"><h3>Cloud</h3></div><div class="bd"><p class="info-line" style="margin:0">Backend: <b>Supabase</b> · shared across all users. Petty cash ${State.pcs.length} · Reimbursements ${State.reimb.length} · Log ${State.log.length}.</p></div></div>
+    </div></div>`;
+}
+App.adminDelete = id => { const pc=State.pcs.find(p=>p.id===id); if(!pc)return; confirmModal('Delete petty cash',`Permanently delete <b>${esc(pc.ref||'this draft')}</b> and its ${(pc.bills||[]).length} bill(s)?`,'Delete', async ()=>{ for(const b of (pc.bills||[])){ if(b.file_path){try{await sb.storage.from(CONFIG.BILLS_BUCKET).remove([b.file_path]);}catch(e){}} } await sb.from('petty_cash').delete().eq('id',id); State.pcs=State.pcs.filter(p=>p.id!==id); await logAct('Deleted petty cash',pc.ref||''); closeModal(); toast('Deleted'); go(State.view==='admin'?'admin':'list'); }); };
+App.clearAll = () => { confirmModal('Clear all data','This removes every petty cash, bill, reimbursement, notification and log entry across the cloud. It cannot be undone.','Clear everything', async ()=>{
+  await sb.from('bills').delete().neq('id','00000000-0000-0000-0000-000000000000');
+  await sb.from('petty_cash').delete().neq('id','00000000-0000-0000-0000-000000000000');
+  await sb.from('reimbursements').delete().neq('id','00000000-0000-0000-0000-000000000000');
+  await sb.from('notifications').delete().neq('id','00000000-0000-0000-0000-000000000000');
+  await sb.from('activity_log').delete().neq('id','00000000-0000-0000-0000-000000000000');
+  await loadAll(); closeModal(); toast('All data cleared'); go('dashboard'); buildNav(); refreshBell(); }); };
+
+/* ==================================================================
+   NOTIFICATIONS + MODALS
+   ================================================================== */
+const unreadCount = () => State.notif.filter(n=>!n.is_read).length;
+function refreshBell(){ $('#bellDot').style.display=unreadCount()?'block':'none'; }
+App.toggleNotif = () => { const p=$('#notifPanel'),o=p.classList.toggle('open'); $('#overlay').classList.toggle('show',o); if(o)renderNotifs(); };
+App.closePanels = () => { $('#notifPanel').classList.remove('open'); $('#overlay').classList.remove('show'); };
+function renderNotifs(){ $('#notifList').innerHTML=State.notif.length?State.notif.map(n=>`<div class="notif ${n.is_read?'':'unread'}"><div class="nm">${esc(n.message)}</div><div class="nt"><span>${timeAgo(n.created_at)}</span>${n.petty_cash_id?`<button class="btn ghost sm" style="margin-left:auto;padding:3px 9px" onclick="App.openFromNotif('${n.id}','${n.petty_cash_id}')">Open</button>`:''}</div></div>`).join(''):`<div class="empty"><div class="big">No notifications</div>You're all caught up.</div>`; }
+App.openFromNotif = async (nid,pcId) => { const n=State.notif.find(x=>x.id===nid); if(n&&!n.is_read){ n.is_read=true; await sb.from('notifications').update({is_read:true}).eq('id',nid); refreshBell(); } App.closePanels(); App.open(pcId); };
+App.markAllRead = async () => { const ids=State.notif.filter(n=>!n.is_read).map(n=>n.id); if(ids.length) await sb.from('notifications').update({is_read:true}).in('id',ids); State.notif.forEach(n=>n.is_read=true); refreshBell(); renderNotifs(); };
+function closeModal(){ $('#modalWrap').classList.remove('show'); } App.closeModal=closeModal;
+function confirmModal(title,html,ok,onOk){ $('#modalTitle').textContent=title; $('#modalBody').innerHTML=`<p style="margin:0;line-height:1.55">${html}</p>`; $('#modalFoot').innerHTML=`<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn danger" id="okBtn">${esc(ok)}</button>`; $('#modalWrap').classList.add('show'); $('#okBtn').onclick=onOk; }
+function promptModal(title,label,ph,onOk){ $('#modalTitle').textContent=title; $('#modalBody').innerHTML=`<div class="field" style="margin:0"><label>${esc(label)}</label><textarea id="pmInp" class="input" placeholder="${esc(ph)}"></textarea></div>`; $('#modalFoot').innerHTML=`<button class="btn" onclick="App.closeModal()">Cancel</button><button class="btn primary" id="pmOk">Submit</button>`; $('#modalWrap').classList.add('show'); $('#pmOk').onclick=()=>{const v=$('#pmInp').value.trim();closeModal();onOk(v);}; }
+
+/* ---------- start ---------- */
+initAuth();
+</script>
+</body>
+</html>
