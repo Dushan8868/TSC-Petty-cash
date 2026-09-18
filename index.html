@@ -200,8 +200,9 @@ const CONFIG = {
   SUPABASE_URL:      'https://itruuucxgrkohvlcvazq.supabase.co',
 SUPABASE_ANON_KEY:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0cnV1dWN4Z3Jrb2h2bGN2YXpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMTUzNDIsImV4cCI6MjEwNDY5MTM0Mn0.ZOUrwNudv_2ZLxaAT9ToVmYMvY7FisxhtIN-bFI62Ik',
   BILLS_BUCKET:      'bills',
-  EDGE_ANALYZE_URL:  '',          // optional: https://YOUR-PROJECT.functions.supabase.co/analyze-bill
-  ANTHROPIC_API_KEY: ''           // optional fallback (exposes key in browser — prefer the Edge Function)
+  EDGE_ANALYZE_URL:  'https://itruuucxgrkohvlcvazq.supabase.co/functions/v1/smooth-service',
+  ANTHROPIC_API_KEY: '',          // leave empty — the key lives in Supabase secrets
+  ANTHROPIC_MODEL:   'claude-sonnet-4-6'   // if you get a model error, try 'claude-haiku-4-5-20251001'
 };
 
 /* ---------- Chart of Accounts (FMO) ---------- */
@@ -507,39 +508,82 @@ App.filesPicked = async files => {
     let uploaded=true;
     try{ const {error}=await sb.storage.from(CONFIG.BILLS_BUCKET).upload(path,f,{upsert:true,contentType:f.type}); if(error) throw error; }
     catch(e){ uploaded=false; toast('Upload failed for '+f.name,'err'); }
+    const thumbData = f.type.startsWith('image/')? await thumb(f):null;
+    // first row for this file
     const rec={id:billId,petty_cash_id:State.draft.id,file_name:f.name,mime:f.type,file_path:uploaded?path:null,bill_date:'',merchant:'',invoice:'',amount:null,gl_code:'',remark:'',is_duplicate:false,sort:(State.draft.bills||[]).length};
-    await sb.from('bills').insert(rec);
-    rec._thumb = f.type.startsWith('image/')? await thumb(f):null;
-    rec._analyzing=true;
+    rec._thumb=thumbData; rec._analyzing=true;
+    await sb.from('bills').insert(stripUi(rec));
     State.draft.bills.push(rec); drawCreate();
-    analyzeBill(rec,f).finally(async()=>{ await checkDuplicate(rec); await sb.from('bills').update({bill_date:rec.bill_date,merchant:rec.merchant,invoice:rec.invoice,amount:rec.amount,is_duplicate:rec.is_duplicate}).eq('id',rec.id); drawCreate(); });
+    // read the file — may contain several receipts
+    let items=[];
+    try{ items = await analyzeExtract(f, rec.mime); }catch(e){ console.warn('analyze',e); }
+    if(!items || !items.length){
+      // could not read — leave as manual entry
+      rec._analyzing=false; if(!rec.bill_date) rec.bill_date=todayISO();
+      await checkDuplicate(rec); await sb.from('bills').update(billFields(rec)).eq('id',rec.id); drawCreate(); continue;
+    }
+    // apply first receipt to the existing row
+    applyItem(rec, items[0]); rec._analyzed=true; rec._analyzing=false;
+    if(items.length>1) rec.remark = (rec.remark? rec.remark+' · ':'')+'Receipt 1/'+items.length;
+    await checkDuplicate(rec); await sb.from('bills').update(billFields(rec)).eq('id',rec.id); drawCreate();
+    // extra receipts in the same file → new rows pointing at the same file
+    for(let k=1;k<items.length;k++){
+      const id2 = (crypto.randomUUID? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2));
+      const r2={id:id2,petty_cash_id:State.draft.id,file_name:f.name,mime:f.type,file_path:rec.file_path,bill_date:'',merchant:'',invoice:'',amount:null,gl_code:'',remark:'Receipt '+(k+1)+'/'+items.length,is_duplicate:false,sort:(State.draft.bills||[]).length,_thumb:thumbData,_analyzed:true};
+      applyItem(r2, items[k]);
+      await sb.from('bills').insert(stripUi(r2));
+      await checkDuplicate(r2); await sb.from('bills').update(billFields(r2)).eq('id',r2.id);
+      State.draft.bills.push(r2); drawCreate();
+    }
+    if(items.length>1) toast(`Read ${items.length} receipts from ${f.name}`,'ok');
   }
 };
+function stripUi(b){ const {_thumb,_analyzing,_analyzed,...rest}=b; return rest; }
+function billFields(b){ return {bill_date:b.bill_date,merchant:b.merchant,invoice:b.invoice,amount:b.amount,remark:b.remark,is_duplicate:b.is_duplicate}; }
+function applyItem(rec,it){
+  if(it.date&&/^\d{4}-\d{2}-\d{2}$/.test(it.date)) rec.bill_date=it.date; else if(!rec.bill_date) rec.bill_date=todayISO();
+  rec.merchant=it.merchant||rec.merchant||'';
+  rec.invoice=it.invoice||rec.invoice||'';
+  if(it.amount!=null&&!isNaN(it.amount)&&Number(it.amount)>0) rec.amount=Number(it.amount);
+}
 function thumb(f){return new Promise(res=>{const r=new FileReader();r.onload=()=>{const i=new Image();i.onload=()=>{let w=i.width,h=i.height;const s=Math.min(1,300/Math.max(w,h));w*=s;h*=s;const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(i,0,0,w,h);res(c.toDataURL('image/jpeg',0.7));};i.onerror=()=>res(null);i.src=r.result;};r.onerror=()=>res(null);r.readAsDataURL(f);});}
 function toBase64(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result.split(',')[1]);r.onerror=rej;r.readAsDataURL(f);});}
 
-async function analyzeBill(rec,file){
-  const isImg=(rec.mime||'').startsWith('image/'),isPdf=(rec.mime||'').includes('pdf');
-  if(!isImg&&!isPdf){ rec._analyzing=false; if(!rec.bill_date) rec.bill_date=todayISO(); return; }
-  try{
-    const b64=await toBase64(file); let j=null;
-    if(CONFIG.EDGE_ANALYZE_URL){
-      const {data:{session}}=await sb.auth.getSession();
-      const r=await fetch(CONFIG.EDGE_ANALYZE_URL,{method:'POST',headers:{'Content-Type':'application/json',apikey:CONFIG.SUPABASE_ANON_KEY,Authorization:'Bearer '+((session&&session.access_token)||'')},body:JSON.stringify({fileBase64:b64,mime:rec.mime})});
-      j=await r.json();
-    } else if(CONFIG.ANTHROPIC_API_KEY){
-      const block=isPdf?{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}}:{type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}};
-      const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':CONFIG.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,messages:[{role:'user',content:[block,{type:'text',text:'Extract and reply ONLY JSON {"date":"YYYY-MM-DD","merchant":"","invoice":"","amount":0}. amount=final total number only.'}]}]})});
-      const d=await r.json(); const t=(d.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n'); j=JSON.parse(t.replace(/```json|```/g,'').trim());
-    } else { rec._analyzing=false; if(!rec.bill_date) rec.bill_date=todayISO(); return; }
-    if(j&&!j.error){
-      if(j.date&&/^\d{4}-\d{2}-\d{2}$/.test(j.date)) rec.bill_date=j.date; else if(!rec.bill_date) rec.bill_date=todayISO();
-      rec.merchant=j.merchant||rec.merchant||''; rec.invoice=j.invoice||rec.invoice||'';
-      if(j.amount!=null&&!isNaN(j.amount)) rec.amount=Number(j.amount);
-      rec._analyzed=true;
-    } else if(!rec.bill_date) rec.bill_date=todayISO();
-  }catch(e){ console.warn('analyze',e); if(!rec.bill_date) rec.bill_date=todayISO(); }
-  finally{ rec._analyzing=false; }
+// Returns an array of receipts found in the file: [{date,merchant,invoice,amount}, ...]
+async function analyzeExtract(file, mime){
+  const isImg=(mime||'').startsWith('image/'), isPdf=(mime||'').includes('pdf');
+  if(!isImg && !isPdf) return [];
+  const b64=await toBase64(file);
+  const prompt='This file may contain ONE OR MORE separate receipts or invoices — often one per page. Extract EACH receipt/invoice separately. Reply with ONLY a JSON array and nothing else (no markdown): [{"date":"YYYY-MM-DD","merchant":"","invoice":"","amount":0}]. One object per distinct receipt. date = the receipt/invoice date. merchant = the vendor/shop/company name. invoice = the invoice, bill or receipt reference number (empty string if none). amount = the FINAL grand total payable, VAT included, as a plain number only (no currency symbol, no thousands separators). If a value is unreadable use an empty string or 0. Do not invent receipts — only include ones actually present.';
+  let text=null;
+  if(CONFIG.EDGE_ANALYZE_URL){
+    const {data:{session}}=await sb.auth.getSession();
+    const r=await fetch(CONFIG.EDGE_ANALYZE_URL,{method:'POST',headers:{'Content-Type':'application/json',apikey:CONFIG.SUPABASE_ANON_KEY,Authorization:'Bearer '+((session&&session.access_token)||'')},body:JSON.stringify({fileBase64:b64,mime})});
+    const j=await r.json();
+    if(j&&j.error) throw new Error(j.error);
+    // edge function may return an array directly, or {items:[...]}, or {text:"..."}
+    if(Array.isArray(j)) return normalizeItems(j);
+    if(j&&Array.isArray(j.items)) return normalizeItems(j.items);
+    if(j&&j.text){ text=j.text; }
+    else return normalizeItems([j]);
+  } else if(CONFIG.ANTHROPIC_API_KEY){
+    const block=isPdf?{type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}}:{type:'image',source:{type:'base64',media_type:'image/jpeg',data:b64}};
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':CONFIG.ANTHROPIC_API_KEY,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:CONFIG.ANTHROPIC_MODEL||'claude-sonnet-4-6',max_tokens:1500,messages:[{role:'user',content:[block,{type:'text',text:prompt}]}]})});
+    const d=await r.json();
+    if(d&&d.error) throw new Error(d.error.message||'api error');
+    text=(d.content||[]).filter(c=>c.type==='text').map(c=>c.text).join('\n');
+  } else {
+    return []; // reader not configured → manual entry
+  }
+  if(text==null) return [];
+  const cleaned=text.replace(/```json|```/g,'').trim();
+  let parsed; try{ parsed=JSON.parse(cleaned); }catch(e){ const m=cleaned.match(/\[[\s\S]*\]/); if(m){ try{ parsed=JSON.parse(m[0]); }catch(_){ } } }
+  if(!parsed) return [];
+  return normalizeItems(Array.isArray(parsed)?parsed:[parsed]);
+}
+function normalizeItems(arr){
+  return (arr||[]).map(x=>({date:x.date||'',merchant:x.merchant||'',invoice:x.invoice||'',amount:(x.amount!=null&&!isNaN(x.amount))?Number(x.amount):null}))
+                  .filter(x=>x.merchant||x.amount||x.invoice); // drop empties
 }
 async function checkDuplicate(rec){
   const key=(inv,amt)=>((inv||'').trim().toLowerCase())+'|'+(Number(amt)||0).toFixed(2);
