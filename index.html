@@ -837,7 +837,7 @@ function formBody(opts){
    +'<div><b>Prepared by</b>'+esc(opts.prepared||'Ahmad Abu Taha')+'<br>Accountant</div>'
    +'<div><b>Verified by</b>'+esc(opts.reviewed||'Benin Rajappan')+'<br>Facilities Engineer</div>'
    +'<div><b>Approved by</b>'+esc(opts.approved||'Shadi Girgis')+'<br>Facility Manager</div>'
-   +'<div><b>Verified by</b>Waqar Khan<br>Senior Accountant</div></div>';
+   +'<div><b>Verified by — Finance</b>Dushan J Amaratunga<br>Accountant</div></div>';
 }
 App.printSummary = id => { const pc=State.pcs.find(p=>p.id===id); if(!pc)return;
   const inner=formBody({title:'Community Management',refNo:pc.ref||'',dateStr:todayISO(),bills:pc.bills||[],
