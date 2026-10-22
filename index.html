@@ -202,7 +202,7 @@ const CONFIG = {
   EDGE_ANALYZE_URL:  'https://itruuucxgrkohvlcvazq.supabase.co/functions/v1/smooth-service',
   ANTHROPIC_API_KEY: '',          // leave empty — the key lives in Supabase secrets
   ANTHROPIC_MODEL:   'claude-sonnet-4-6',   // if you get a model error, try 'claude-haiku-4-5-20251001'
-  EMAIL_URL:         'https://itruuucxgrkohvlcvazq.supabase.co/functions/v1/bright-api'  // set '' to disable emails
+  EMAIL_URL:         'https://itruuucxgrkohvlcvazq.supabase.co/functions/v1/send-email'  // set '' to disable emails
 };
 
 /* ---------- Chart of Accounts (FMO) ---------- */
@@ -487,7 +487,7 @@ function drawCreate(){
   <div class="card" style="margin-bottom:16px"><div class="hd"><h3>1 · Upload bills & invoices</h3><div class="spacer"></div><span class="sub">Images or PDF · one-by-one or bulk</span></div>
     <div class="bd"><div class="dropzone" id="dz" onclick="document.getElementById('fileInp').click()"><div style="font-size:26px">⇪</div><div class="big">Drop bills here or click to browse</div><div class="small">JPG, PNG or PDF. Files go straight to shared cloud storage and are read automatically.</div></div>
     <input type="file" id="fileInp" multiple accept="image/*,application/pdf" style="display:none" onchange="App.filesPicked(this.files)"></div></div>
-  <div class="card"><div class="hd"><h3>2 · Captured lines</h3><div class="spacer"></div><span class="sub">Edit any field, then assign the reason / GL account</span></div>
+  <div class="card"><div class="hd"><h3>2 · Captured lines</h3><div class="spacer"></div><button class="btn sm" onclick="App.addManualBill()">＋ Add bill manually</button><span class="sub">Edit any field, then assign the reason / GL account</span></div>
     <div class="bd" id="billsBox">${(d.bills||[]).length? d.bills.map(billRow).join('') : `<div class="empty"><div class="big">No bills uploaded yet</div>Upload bills above to begin capturing.</div>`}</div></div>
   <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
     <div class="spacer"></div>
@@ -609,6 +609,13 @@ App.editBill = async (id,f,v)=>{ const b=State.draft.bills.find(x=>x.id===id); i
   if(f==='invoice'||f==='amount') await checkDuplicate(b);
   await sb.from('bills').update({[f]:b[f],is_duplicate:b.is_duplicate}).eq('id',id); drawCreate(); };
 App.removeBill = async id => { const b=State.draft.bills.find(x=>x.id===id); if(b&&b.file_path){ try{await sb.storage.from(CONFIG.BILLS_BUCKET).remove([b.file_path]);}catch(e){} } await sb.from('bills').delete().eq('id',id); State.draft.bills=State.draft.bills.filter(x=>x.id!==id); drawCreate(); };
+App.addManualBill = async () => {
+  const id=(crypto.randomUUID? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2));
+  const rec={id,petty_cash_id:State.draft.id,file_name:'Manual entry',mime:'',file_path:null,bill_date:todayISO(),merchant:'',invoice:'',amount:null,gl_code:'',remark:'',is_duplicate:false,sort:(State.draft.bills||[]).length,_analyzed:false,_analyzing:false};
+  await sb.from('bills').insert(stripUi(rec));
+  State.draft.bills.push(rec); drawCreate();
+  toast('Manual line added — fill in the details','ok');
+};
 App.discardDraft = async () => { const d=State.draft; for(const b of (d.bills||[])){ if(b.file_path){try{await sb.storage.from(CONFIG.BILLS_BUCKET).remove([b.file_path]);}catch(e){}} } await sb.from('petty_cash').delete().eq('id',d.id); State.pcs=State.pcs.filter(p=>p.id!==d.id); State.draft=null; toast('Draft discarded'); go('list'); };
 App.finalise = async () => {
   const d=State.draft; const noGl=(d.bills||[]).filter(b=>!b.gl_code).length, noAmt=(d.bills||[]).filter(b=>!b.amount).length;
