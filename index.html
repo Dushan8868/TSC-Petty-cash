@@ -197,7 +197,8 @@ textarea.input{resize:vertical;min-height:60px}.row{display:flex;gap:12px}.row>*
    Pages) or open it after adding your keys. See SETUP.md.
    ===================================================================== */
 const CONFIG = {
-  SUPABASE_URL:      'https://itruuucxgrkohvlcvazq.supabase.co', SUPABASE_ANON_KEY:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0cnV1dWN4Z3Jrb2h2bGN2YXpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMTUzNDIsImV4cCI6MjEwNDY5MTM0Mn0.ZOUrwNudv_2ZLxaAT9ToVmYMvY7FisxhtIN-bFI62Ik',
+  SUPABASE_URL:      'https://itruuucxgrkohvlcvazq.supabase.co',
+SUPABASE_ANON_KEY:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Iml0cnV1dWN4Z3Jrb2h2bGN2YXpxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkxMTUzNDIsImV4cCI6MjEwNDY5MTM0Mn0.ZOUrwNudv_2ZLxaAT9ToVmYMvY7FisxhtIN-bFI62Ik',
   BILLS_BUCKET:      'bills',
   EDGE_ANALYZE_URL:  'https://itruuucxgrkohvlcvazq.supabase.co/functions/v1/smooth-service',
   ANTHROPIC_API_KEY: '',          // leave empty — the key lives in Supabase secrets
@@ -464,7 +465,11 @@ function renderApprovals(){
 async function renderCreate(){
   if(!canPrepare()){ $('#view').innerHTML=`<div class="empty"><div class="big">Preparation is Ahmad Abu Taha's step</div>You need preparer role with edit access.</div>`; return; }
   if(!State.draft){
-    let mine=State.pcs.find(p=>p.status==='draft'&&p.created_by===State.user.id&&(p.bills||[]).length===0);
+    // Always reopen this user's most recent in-progress draft (so work is never lost
+    // when switching browsers or coming back later). Only make a new one if none exists.
+    const myDrafts=State.pcs.filter(p=>p.status==='draft'&&p.created_by===State.user.id)
+      .sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+    let mine=myDrafts[0];
     if(!mine){ const {data,error}=await sb.from('petty_cash').insert({status:'draft',created_by:State.user.id}).select().single();
       if(error){toast('Could not start draft','err');return;} data.bills=[]; State.pcs.unshift(data); mine=data; }
     State.draft=mine;
@@ -481,7 +486,8 @@ function drawCreate(){
     <div style="width:1px;height:34px;background:var(--line-2)"></div>
     <div><div class="sub">Prepared by</div><div style="font-weight:600">${esc(State.user.name)}</div></div>
     <div class="spacer"></div><div style="text-align:right"><div class="sub">Bills · Total</div><div style="font-weight:800;font-size:18px" class="num">${(d.bills||[]).length} · ${aed(total)}</div></div>
-  </div></div>
+  </div>
+  <div style="padding:0 18px 12px;font-size:12px;color:var(--green);display:flex;align-items:center;gap:6px">✓ Auto-saved to the cloud — your bills stay here until you finalise or discard, even if you close the browser.</div></div>
   ${d.reject_reason?`<div class="warn-banner" style="background:var(--red-bg);border-color:#e6b3ae;color:#7a2a2a">↩ This petty cash was returned by ${esc(profById(d.rejected_by).name)}: “${esc(d.reject_reason)}”. Fix the issue below, then re-submit.</div>`:''}
   ${dup?`<div class="warn-banner" style="background:var(--red-bg);border-color:#e6b3ae;color:#7a2a2a">⚠ ${dup} possible duplicate ${dup>1?'bills':'bill'} detected and highlighted below.</div>`:''}
   <div class="card" style="margin-bottom:16px"><div class="hd"><h3>1 · Upload bills & invoices</h3><div class="spacer"></div><span class="sub">Images or PDF · one-by-one or bulk</span></div>
@@ -490,9 +496,11 @@ function drawCreate(){
   <div class="card"><div class="hd"><h3>2 · Captured lines</h3><div class="spacer"></div><button class="btn sm" onclick="App.addManualBill()">＋ Add bill manually</button><span class="sub">Edit any field, then assign the reason / GL account</span></div>
     <div class="bd" id="billsBox">${(d.bills||[]).length? d.bills.map(billRow).join('') : `<div class="empty"><div class="big">No bills uploaded yet</div>Upload bills above to begin capturing.</div>`}</div></div>
   <div style="display:flex;gap:10px;margin-top:18px;flex-wrap:wrap">
+    ${!d.ref?`<button class="btn ghost" onclick="App.startNewDraft()">Start a new petty cash</button>`:''}
     <div class="spacer"></div>
     <button class="btn" onclick="App.printSummary('${d.id}')" ${(d.bills||[]).length===0?'disabled':''}>Preview summary</button>
-    ${d.ref?`<button class="btn" onclick="App.nav('list')">Save &amp; close</button>`:`<button class="btn ghost danger" onclick="App.discardDraft()">Discard</button>`}
+    <button class="btn" onclick="App.saveDraftClose()">Save draft &amp; close</button>
+    ${d.ref?'':`<button class="btn ghost danger" onclick="App.discardDraft()">Discard</button>`}
     <button class="btn primary" onclick="App.finalise()" ${(d.bills||[]).length===0?'disabled':''}>${d.ref?'Re-submit for review →':'Finalise &amp; send for review →'}</button>
   </div>`;
   wireDropzone();
@@ -609,6 +617,14 @@ App.editBill = async (id,f,v)=>{ const b=State.draft.bills.find(x=>x.id===id); i
   if(f==='invoice'||f==='amount') await checkDuplicate(b);
   await sb.from('bills').update({[f]:b[f],is_duplicate:b.is_duplicate}).eq('id',id); drawCreate(); };
 App.removeBill = async id => { const b=State.draft.bills.find(x=>x.id===id); if(b&&b.file_path){ try{await sb.storage.from(CONFIG.BILLS_BUCKET).remove([b.file_path]);}catch(e){} } await sb.from('bills').delete().eq('id',id); State.draft.bills=State.draft.bills.filter(x=>x.id!==id); drawCreate(); };
+App.saveDraftClose = () => { State.draft=null; toast('Draft saved — find it under All petty cash','ok'); go('list'); };
+App.startNewDraft = async () => {
+  // keep the current draft (it's already saved), open a brand-new empty one
+  const {data,error}=await sb.from('petty_cash').insert({status:'draft',created_by:State.user.id}).select().single();
+  if(error){toast('Could not start a new draft','err');return;}
+  data.bills=[]; State.pcs.unshift(data); State.draft=data; drawCreate();
+  toast('New petty cash started — the previous draft is saved','ok');
+};
 App.addManualBill = async () => {
   const id=(crypto.randomUUID? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2));
   const rec={id,petty_cash_id:State.draft.id,file_name:'Manual entry',mime:'',file_path:null,bill_date:todayISO(),merchant:'',invoice:'',amount:null,gl_code:'',remark:'',is_duplicate:false,sort:(State.draft.bills||[]).length,_analyzed:false,_analyzing:false};
